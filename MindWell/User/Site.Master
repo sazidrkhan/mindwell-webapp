@@ -1,0 +1,50 @@
+<%@ Master Language="C#" AutoEventWireup="true" CodeBehind="Site.Master.cs" Inherits="MindWell.User.Site" %>
+<!DOCTYPE html>
+<html lang="en">
+<head runat="server">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><asp:ContentPlaceHolder ID="TitleContent" runat="server">MindWell User</asp:ContentPlaceHolder></title>
+    <script>
+        (function () {
+            try {
+                var stored = window.localStorage.getItem('mindwell-theme');
+                var theme = stored === 'light' || stored === 'dark' ? stored : 'dark';
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch (error) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="/Content/Site.css?v=20260530-final-submission" />
+    <script src='<%= ResolveUrl("~/Scripts/mindwell-ui.js?v=20260530-final-submission") %>' defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <asp:ContentPlaceHolder ID="HeadContent" runat="server" />
+</head>
+<body>
+    <form id="form1" runat="server">
+        <%= MindWell.SecurityHelper.RenderCsrfToken() %>
+        <nav class="navbar">
+            <div class="navbar-container">
+                <a href="~/User/Dashboard.aspx" class="navbar-brand" runat="server"><strong>MindWell</strong></a>
+                <%= RenderNavigation() %>
+                <div class="navbar-actions">
+                    <button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch to dark mode" aria-pressed="false">
+                        <span class="theme-toggle-slider" aria-hidden="true"></span>
+                        <span class="theme-toggle-icon theme-toggle-sun" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" /></svg>
+                        </span>
+                        <span class="theme-toggle-icon theme-toggle-moon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M21 14.8A8.5 8.5 0 0 1 9.2 3 7 7 0 1 0 21 14.8Z" /></svg>
+                        </span>
+                        <span class="sr-only">Switch to dark mode</span>
+                    </button>
+                </div>
+            </div>
+        </nav>
+        <main class="container">
+            <asp:ContentPlaceHolder ID="MainContent" runat="server" />
+        </main>
+    </form>
+</body>
+</html>

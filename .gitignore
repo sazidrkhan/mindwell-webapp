@@ -1,0 +1,38 @@
+# Visual Studio user and workspace files
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+
+# NuGet packages restored locally
+packages/
+*.nupkg
+
+# Compiled assemblies and symbols
+*.dll
+*.exe
+*.pdb
+*.cache
+
+# Local database and runtime diagnostics
+*.mdf
+*.ldf
+*.log
+MindWell/App_Data/*.mdf
+MindWell/App_Data/*.ldf
+MindWell/App_Data/*.log
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+*.swp
