@@ -168,4 +168,4 @@ This project uses [QRCoder](https://github.com/codebude/QRCoder), which is licen
 
 Copyright (C) 2026 Sazid R Khan
 
-This project is licensed under the [GNU Affero General Public License v3.0](https://github.com/sazidrkhan/mindwell-webapp/blob/main/LICENSE).
+This project is licensed under the [GNU Affero General Public License v3.0](LICENSE).
