@@ -38,6 +38,8 @@ WHERE lm.ModuleID=@ModuleID AND " + MindWellServices.ActiveModuleWhere, new SqlP
                 return "<section class='card'><h1>Quiz unavailable</h1><p>No quiz questions are available for this module yet.</p><p class='page-actions'><a class='btn btn-outline' href='Quiz.aspx'>Choose Quiz</a></p></section>";
             var sb = new StringBuilder("<section class='card'><h1>");
             sb.Append(MindWellServices.Encode(quiz.Rows[0]["QuizTitle"])).Append("</h1><p>").Append(MindWellServices.Encode(quiz.Rows[0]["Description"])).Append("</p><p class='content-kicker'>Passing score: ").Append(quiz.Rows[0]["PassingScore"]).Append("%</p><p class='page-actions'><a class='btn btn-outline btn-sm' href='../Public/ModuleDetails.aspx?ModuleID=").Append(moduleId).Append("'>Back to Module Details</a></p><input type='hidden' name='quizAction' value='submit' /><input type='hidden' name='quizId' value='").Append(quizId).Append("' /><input type='hidden' name='moduleId' value='").Append(moduleId).Append("' />");
+            sb.Append("<div class='quiz-progress-shell'><p class='quiz-progress' role='status' aria-live='polite'>0 of ").Append(questions.Rows.Count)
+                .Append(" questions answered</p><progress data-quiz-meter value='0' max='").Append(questions.Rows.Count).Append("' aria-label='Questions answered'></progress></div>");
             foreach (DataRow row in questions.Rows)
             {
                 string id = row["QuestionID"].ToString();

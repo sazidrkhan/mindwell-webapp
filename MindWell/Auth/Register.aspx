@@ -323,18 +323,18 @@
 </asp:Content>
 
 <asp:Content ID="Content2" ContentPlaceHolderID="MainContent" runat="server">
-    <div class="register-gate-backdrop" data-register-gate-backdrop hidden></div>
-    <div class="register-gate-modal" data-register-gate-modal role="dialog" aria-modal="true" aria-labelledby="registerGateTitle" hidden>
+    <div class="register-gate-backdrop" data-register-gate-backdrop data-register-gate-close hidden></div>
+    <div class="register-gate-modal" data-register-gate-modal role="dialog" aria-modal="true" aria-labelledby="registerGateTitle" aria-describedby="registerGateDescription" tabindex="-1" hidden>
         <p class="eyebrow">Before you register</p>
         <h2 id="registerGateTitle">MindWell is a learning and wellbeing support platform</h2>
-        <p>MindWell helps students practise mental-health learning activities, mood reflection, quizzes, and supportive discussions. It is not an emergency or clinical counselling service.</p>
+        <p id="registerGateDescription">MindWell helps students practise mental-health learning activities, mood reflection, quizzes, and supportive discussions. It is not an emergency or clinical counselling service.</p>
         <div class="button-row">
             <button type="button" class="btn btn-primary" data-register-gate-close>Continue to registration</button>
             <a class="btn btn-outline" href="~/Auth/Login.aspx" runat="server">I already have an account</a>
         </div>
     </div>
 
-    <div class="card auth-card" data-register-gate>
+    <div class="card auth-card" data-register-gate tabindex="0">
         <!-- Logo -->
         <div class="auth-logo">
             <h2>MindWell</h2>

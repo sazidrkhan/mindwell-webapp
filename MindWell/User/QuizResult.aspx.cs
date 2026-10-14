@@ -21,7 +21,7 @@ namespace MindWell.User
             DataRow row = result.Rows[0];
             bool passed = Convert.ToBoolean(row["Passed"]);
             var sb = new StringBuilder();
-            sb.Append("<section class='card'><h1>Quiz Result</h1><h2>").Append(MindWellServices.Encode(row["QuizTitle"]))
+            sb.Append("<section class='card quiz-result-card' data-passed='").Append(passed ? "true" : "false").Append("'><span class='result-emblem' aria-hidden='true'>").Append(passed ? "✓" : "↻").Append("</span><h1>Quiz Result</h1><h2>").Append(MindWellServices.Encode(row["QuizTitle"]))
                 .Append("</h2><p class='score-display'>Score: <strong>").Append(row["Score"]).Append("%</strong></p><p>")
                 .Append(passed ? "Great work. You passed this quiz." : "Review the module materials and try again.")
                 .Append("</p><p class='page-actions'><a class='btn btn-primary' href='Progress.aspx?ModuleID=").Append(row["ModuleID"])

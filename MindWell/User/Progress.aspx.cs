@@ -17,7 +17,7 @@ namespace MindWell.User
             if (Request.QueryString["ModuleID"] != null && !SecurityHelper.TryGetPositiveIntQuery("ModuleID", out moduleFilter))
                 return "<section class='card'><h1>Invalid module selected</h1><p class='page-actions'><a class='btn btn-outline' href='Progress.aspx'>View all progress</a></p></section>";
 
-            DataTable rows = MindWellServices.Query(@"
+            QueryResult progressResult = MindWellServices.TryQuery(@"
 SELECT lm.ModuleID, lm.ModuleName,
        CASE WHEN ISNULL(best.Score,0) >= ISNULL(quiz.PassingScore,70) THEN 100 ELSE ISNULL(up.PercentageComplete, ISNULL(best.Score,0)) END AS PercentageComplete,
        CASE WHEN ISNULL(best.Score,0) >= ISNULL(quiz.PassingScore,70) THEN 1 ELSE ISNULL(up.IsCompleted,0) END AS IsCompleted,
@@ -47,10 +47,15 @@ OUTER APPLY (
 ) best
 WHERE " + MindWellServices.ActiveModuleWhere + @" AND (@ModuleID=0 OR lm.ModuleID=@ModuleID)
 ORDER BY lm.OrderIndex", new SqlParameter("@UserID", userId), new SqlParameter("@ModuleID", moduleFilter));
+            if (progressResult.HasError)
+                return MindWellServices.RenderDataUnavailable("Your learning progress could not be loaded. Please try again.");
+            DataTable rows = progressResult.Data;
             string moduleBackLink = moduleFilter > 0
                 ? "<p class='back-link'><a class='btn btn-outline btn-sm' href='../Public/ModuleDetails.aspx?ModuleID=" + moduleFilter + "'>Back to Module</a></p>"
                 : string.Empty;
-            var sb = new StringBuilder(moduleBackLink + "<section class='section-header'><h1>Progress & Achievements</h1><p>Track your MindWell journey by module.</p></section><div class='row'>");
+            var sb = new StringBuilder(moduleBackLink + "<section class='section-header'><h1>Progress & Achievements</h1><p>Every small step counts. Here is your journey so far.</p></section><div class='progress-journey'>");
+            if (rows.Rows.Count == 0)
+                sb.Append(MindWellServices.RenderEmptyState("Your learning journey starts here.", "Published modules will appear here when they are ready."));
             foreach (DataRow row in rows.Rows)
                 RenderModuleProgress(sb, row);
             sb.Append("</div>");
@@ -62,8 +67,8 @@ ORDER BY lm.OrderIndex", new SqlParameter("@UserID", userId), new SqlParameter("
             // Each module card uses the same action block so button alignment remains consistent across rows.
             int id = MindWellServices.ToInt(row["ModuleID"], 1);
             int percent = Math.Max(0, Math.Min(100, MindWellServices.ToInt(row["PercentageComplete"], 0)));
-            sb.Append("<div class='card'><h2>").Append(MindWellServices.Encode(row["ModuleName"]))
-                .Append("</h2><div class='progress-shell'><div class='progress-fill' style='width:").Append(percent)
+            sb.Append("<div class='card'>").Append(WellbeingUi.Artwork(id)).Append("<h2>").Append(MindWellServices.Encode(row["ModuleName"]))
+                .Append("</h2><div class='progress-shell' role='progressbar' aria-label='Module completion' aria-valuemin='0' aria-valuemax='100' aria-valuenow='").Append(percent).Append("'><div class='progress-fill' style='width:").Append(percent)
                 .Append("%'></div></div><p>").Append(percent).Append("% complete</p>");
             if (row["Score"] != DBNull.Value)
                 sb.Append("<p>Best quiz score: <strong>").Append(MindWellServices.Encode(row["Score"])).Append("%</strong></p>");

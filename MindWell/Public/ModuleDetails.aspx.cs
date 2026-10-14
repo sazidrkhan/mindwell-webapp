@@ -34,7 +34,7 @@ WHERE ModuleID=@ModuleID
             int minutes = MindWellServices.ToInt(row["EstimatedMinutes"], 0);
 
             var sb = new StringBuilder();
-            sb.Append("<p class='back-link'><a class='btn btn-outline btn-sm' href='Modules.aspx'>Back to Modules</a></p><section class='card learning-path'><p class='badge-row'><span class='access-badge'>")
+            sb.Append("<div class='module-detail-page'><p class='back-link'><a class='btn btn-outline btn-sm' href='Modules.aspx'>Back to Modules</a></p><section class='card learning-path module-intro'><div class='module-intro-copy'><p class='badge-row'><span class='access-badge'>")
                 .Append(authenticated ? "Member access" : "Preview")
                 .Append("</span>");
             if (minutes > 0)
@@ -46,7 +46,7 @@ WHERE ModuleID=@ModuleID
             if (HasText(description))
                 sb.Append("<p>").Append(MindWellServices.Encode(description)).Append("</p>");
             if (HasText(outcomes))
-                sb.Append("<div class='outcome-row'>").Append(RenderOutcomeChips(outcomes)).Append("</div>");
+                sb.Append("<details class='module-outcomes'><summary>What you will learn</summary><div class='outcome-row'>").Append(RenderOutcomeChips(outcomes)).Append("</div></details>");
 
             sb.Append("<p class='page-actions'>");
             if (authenticated && admin)
@@ -65,7 +65,7 @@ WHERE ModuleID=@ModuleID
                     .Append("<a class='btn btn-outline' href='Articles.aspx?ModuleID=").Append(id).Append("'>Browse Articles</a>");
             }
 
-            sb.Append("</p></section>");
+            sb.Append("</p></div><div class='module-intro-art'>").Append(WellbeingUi.Scene(id)).Append("</div></section>");
             if (authenticated)
             {
                 sb.Append(RenderCourseContent(id, moduleName));
@@ -80,7 +80,7 @@ WHERE ModuleID=@ModuleID
             }
 
             sb.Append(RenderFeaturedArticles(articles, authenticated));
-            return sb.ToString();
+            return sb.Append("</div>").ToString();
         }
 
         private bool HasText(string value)
@@ -115,16 +115,20 @@ WHERE ModuleID=@ModuleID
                 return string.Empty;
 
             string moduleTitle = HasText(moduleName) ? moduleName : GetModuleTitle(moduleId);
-            var sb = new StringBuilder("<section class='course-content'><div class='section-header'><p class='content-kicker'>Interactive learning path</p><h2>Course Content: ")
+            var sb = new StringBuilder("<section class='course-content'><div class='section-header'><h2>Course Content: ")
                 .Append(MindWellServices.Encode(moduleTitle))
-                .Append("</h2><p>Work through the module diagram and short visual lesson cards before using the checklist, quiz, and guided activity.</p></div>")
-                .Append(RenderModuleLearningObject(moduleId))
-                .Append("<div class='lesson-grid lesson-card-grid'>");
+                .Append("</h2><p>Explore the visual exercise, choose a lesson, then put an idea into practice.</p></div><nav class='lesson-nav' aria-label='Lessons in this module'>");
+            for (int i = 0; i < lessons.Length; i++)
+                sb.Append("<a href='#module-").Append(moduleId).Append("-lesson-").Append(i + 1).Append("'><span>").Append(i + 1).Append("</span>").Append(MindWellServices.Encode(lessons[i].Title)).Append("</a>");
+            sb.Append("</nav>").Append(RenderModuleLearningObject(moduleId));
+            if (moduleId == 2 || moduleId == 3)
+                sb.Append("<details class='module-breathing-panel'><summary>Try a one-minute breathing reset</summary>").Append(WellbeingUi.BreathingExercise("module-breath")).Append("</details>");
+            sb.Append("<div class='lesson-grid lesson-card-grid'>");
             for (int i = 0; i < lessons.Length; i++)
             {
                 CourseLesson lesson = lessons[i];
-                sb.Append("<article class='card lesson-card' data-module-id='").Append(moduleId).Append("'><div class='lesson-card-layout'>")
-                    .Append(RenderLessonVisual(lesson.VisualKey, i + 1))
+                sb.Append("<article class='card lesson-card' id='module-").Append(moduleId).Append("-lesson-").Append(i + 1).Append("' tabindex='-1' data-module-id='").Append(moduleId).Append("'><div class='lesson-card-layout'>")
+                    .Append(RenderLessonVisual(lesson.VisualKey, i + 1, moduleId))
                     .Append("<div class='lesson-body'><h3>").Append(MindWellServices.Encode(lesson.Title)).Append("</h3><p>")
                     .Append(MindWellServices.Encode(lesson.Explanation)).Append("</p><ul class='lesson-takeaways'>");
 
@@ -151,7 +155,7 @@ WHERE ModuleID=@ModuleID
                         new VloDetail("Struggling", "Stress or distress is starting to affect focus, mood, sleep, or connection. This is a signal to reduce load where possible and speak with a trusted person or support service."),
                         new VloDetail("Crisis support", "Safety comes first when someone may harm themselves, feels unable to stay safe, or is in immediate danger. Contact trusted adults, crisis services, emergency care, or local emergency numbers right away.")
                     };
-                    return "<figure class='module-learning-object module-learning-object-continuum' data-vlo-panel><div class='learning-object-copy'><p class='content-kicker'>Visual learning object</p><h3 id='" + titleId + "'>Mental health continuum</h3><p>Wellbeing moves across ordinary days, pressure, distress, and urgent support needs. The goal is to notice movement early and choose support before crisis.</p>" + RenderVloDetails(moduleId, details) + "</div><div class='learning-object-media' aria-labelledby='" + titleId + "'><svg viewBox='0 0 520 180' focusable='false' aria-hidden='true'><path class='object-line' d='M70 88 H450' /><circle cx='80' cy='88' r='32' /><circle cx='205' cy='88' r='32' /><circle cx='330' cy='88' r='32' /><circle cx='450' cy='88' r='32' /><path class='object-leaf' d='M66 73c18 2 30 14 31 31-18-2-30-14-31-31Z' /><path class='object-wave' d='M190 90c12-16 25-16 37 0' /><path class='object-signal' d='M320 72v32M304 88h32' /><path class='object-support' d='M438 76h24v24h-14l-10 10v-10h-10Z' /></svg>" + RenderVloControls(moduleId, details, "ol", "continuum-labels", false) + "</div><figcaption>Select each point on the continuum to see the matching support step.</figcaption></figure>";
+                    return "<figure class='module-learning-object module-learning-object-continuum' data-vlo-panel><div class='learning-object-copy'><p class='content-kicker'>Visual learning object</p><h3 id='" + titleId + "'>Mental health continuum</h3><p>Wellbeing moves across ordinary days, pressure, distress, and urgent support needs. The goal is to notice movement early and choose support before crisis.</p>" + RenderVloDetails(moduleId, details) + "</div><div class='learning-object-media' role='group' aria-labelledby='" + titleId + "'><svg viewBox='0 0 520 180' focusable='false' aria-hidden='true'><path class='object-line' d='M70 88 H450' /><circle cx='80' cy='88' r='32' /><circle cx='205' cy='88' r='32' /><circle cx='330' cy='88' r='32' /><circle cx='450' cy='88' r='32' /><path class='object-leaf' d='M66 73c18 2 30 14 31 31-18-2-30-14-31-31Z' /><path class='object-wave' d='M190 90c12-16 25-16 37 0' /><path class='object-signal' d='M320 72v32M304 88h32' /><path class='object-support' d='M438 76h24v24h-14l-10 10v-10h-10Z' /></svg>" + RenderVloControls(moduleId, details, "ol", "continuum-labels", false) + "</div><figcaption>Select each point on the continuum to see the matching support step.</figcaption></figure>";
                 }
                 case 2:
                 {
@@ -162,7 +166,7 @@ WHERE ModuleID=@ModuleID
                         new VloDetail("Pause", "A pause can be one slow breath, a sip of water, standing up, or naming what is happening. It creates enough space to choose instead of react."),
                         new VloDetail("Helpful response", "A helpful response is small, specific, and safe. It might be time-boxing one task, asking for clarification, setting a boundary, or reaching out for support.")
                     };
-                    return "<figure class='module-learning-object module-learning-object-stress' data-vlo-panel><div class='learning-object-copy'><p class='content-kicker'>Visual learning object</p><h3 id='" + titleId + "'>Stress response map</h3><p>Stress is easier to manage when learners separate the trigger, body signal, coping choice, and recovery action instead of treating everything as one problem.</p>" + RenderVloDetails(moduleId, details) + "</div><div class='learning-object-media stress-map' aria-labelledby='" + titleId + "'><div class='breathing-orb' aria-hidden='true'><span></span></div>" + RenderVloControls(moduleId, details, "ul", "signal-list", false) + "</div><figcaption>The breathing orb is a calm visual reminder to pause before choosing the next action.</figcaption></figure>";
+                    return "<figure class='module-learning-object module-learning-object-stress' data-vlo-panel><div class='learning-object-copy'><p class='content-kicker'>Visual learning object</p><h3 id='" + titleId + "'>Stress response map</h3><p>Stress is easier to manage when learners separate the trigger, body signal, coping choice, and recovery action instead of treating everything as one problem.</p>" + RenderVloDetails(moduleId, details) + "</div><div class='learning-object-media stress-map' role='group' aria-labelledby='" + titleId + "'><div class='breathing-orb' aria-hidden='true'><span></span></div>" + RenderVloControls(moduleId, details, "ul", "signal-list", false) + "</div><figcaption>The breathing orb is a calm visual reminder to pause before choosing the next action.</figcaption></figure>";
                 }
                 case 3:
                 {
@@ -174,7 +178,7 @@ WHERE ModuleID=@ModuleID
                         new VloDetail("2 Smell", "Name two smells if you can, or two smells you remember calmly such as soap, tea, rain, or clean fabric. The aim is gentle attention, not perfect answers."),
                         new VloDetail("1 Taste", "Name one taste or take a small sip of water and notice it. Finish by choosing one helpful next action for the moment you are in.")
                     };
-                    return "<figure class='module-learning-object module-learning-object-grounding' data-vlo-panel><div class='learning-object-copy'><p class='content-kicker'>Visual learning object</p><h3 id='" + titleId + "'>5-4-3-2-1 grounding</h3><p>This sensory sequence gives attention a structured path back to the present moment when worry, rumination, or panic feels loud.</p>" + RenderVloDetails(moduleId, details) + "</div><div class='learning-object-media' aria-labelledby='" + titleId + "'>" + RenderVloControls(moduleId, details, "div", "grounding-steps", true) + "</div><figcaption>Move through the senses slowly; the aim is a steadier pause, not perfect calm.</figcaption></figure>";
+                    return "<figure class='module-learning-object module-learning-object-grounding' data-vlo-panel><div class='learning-object-copy'><p class='content-kicker'>Visual learning object</p><h3 id='" + titleId + "'>5-4-3-2-1 grounding</h3><p>This sensory sequence gives attention a structured path back to the present moment when worry, rumination, or panic feels loud.</p>" + RenderVloDetails(moduleId, details) + "</div><div class='learning-object-media' role='group' aria-labelledby='" + titleId + "'>" + RenderVloControls(moduleId, details, "div", "grounding-steps", true) + "</div><figcaption>Move through the senses slowly; the aim is a steadier pause, not perfect calm.</figcaption></figure>";
                 }
                 case 4:
                 {
@@ -187,7 +191,7 @@ WHERE ModuleID=@ModuleID
                         new VloDetail("Reflection", "Reflection helps you notice what is working and what needs support. A few journal lines can turn a difficult day into useful information."),
                         new VloDetail("Boundaries", "Boundaries protect time, energy, and safety. A clear no, a later reply, or a stopping time can be a form of care.")
                     };
-                    return "<figure class='module-learning-object module-learning-object-selfcare' data-vlo-panel><div class='learning-object-copy'><p class='content-kicker'>Visual learning object</p><h3 id='" + titleId + "'>Self-care wheel</h3><p>Sustainable wellbeing is built from small repeatable foundations. A balanced week includes body care, emotional care, connection, and recovery.</p>" + RenderVloDetails(moduleId, details) + "</div><div class='learning-object-media' aria-labelledby='" + titleId + "'>" + RenderVloControls(moduleId, details, "div", "self-care-wheel", false) + "</div><figcaption>Pick one wedge to strengthen this week instead of trying to perfect every area at once.</figcaption></figure>";
+                    return "<figure class='module-learning-object module-learning-object-selfcare' data-vlo-panel><div class='learning-object-copy'><p class='content-kicker'>Visual learning object</p><h3 id='" + titleId + "'>Self-care wheel</h3><p>Sustainable wellbeing is built from small repeatable foundations. A balanced week includes body care, emotional care, connection, and recovery.</p>" + RenderVloDetails(moduleId, details) + "</div><div class='learning-object-media' role='group' aria-labelledby='" + titleId + "'>" + RenderVloControls(moduleId, details, "div", "self-care-wheel", false) + "</div><figcaption>Pick one wedge to strengthen this week instead of trying to perfect every area at once.</figcaption></figure>";
                 }
                 default:
                     return string.Empty;
@@ -275,24 +279,10 @@ WHERE ModuleID=@ModuleID
             return "<button type='button' class='flip-card' data-flip-card aria-pressed='false'><span class='flip-card-front'>" + MindWellServices.Encode(lesson.FlipFront) + "</span><span class='flip-card-back'>" + MindWellServices.Encode(lesson.FlipBack) + "</span></button>";
         }
 
-        private string RenderLessonVisual(string key, int number)
+        private string RenderLessonVisual(string key, int number, int moduleId)
         {
-            string label = "Lesson " + number;
-            string path;
-            if (key == "stigma")
-                path = "M7 13h10M7 17h6M8 7h8a4 4 0 0 1 0 8h-2l-3 3v-3H8a4 4 0 0 1 0-8Z";
-            else if (key == "stress")
-                path = "M12 4v4m0 8v4M4 12h4m8 0h4M7 7l3 3m4 4 3 3m0-10-3 3m-4 4-3 3";
-            else if (key == "mindfulness")
-                path = "M12 20c4-3 7-6 7-10a7 7 0 0 0-14 0c0 4 3 7 7 10Zm0-12v4l3 2";
-            else if (key == "selfcare")
-                path = "M12 21s-7-4.4-7-10a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 5.6-7 10-7 10Z";
-            else if (key == "support")
-                path = "M6 9a4 4 0 0 1 8 0v1h1a3 3 0 0 1 0 6h-2l-3 3v-3H9a3 3 0 0 1-3-3V9Zm2 1h4m-4 3h7";
-            else
-                path = "M5 5h14v14H5zM8 9h8M8 13h8M8 17h5";
-
-            return "<div class='lesson-visual lesson-visual-" + MindWellServices.Encode(key) + "'><span>" + label + "</span><svg viewBox='0 0 24 24' aria-hidden='true'><path d='" + path + "' /></svg></div>";
+            return "<div class='lesson-illustration lesson-visual-" + MindWellServices.Encode(key) + "'><span class='lesson-number'>Lesson " + number + "</span>" +
+                WellbeingUi.Scene(moduleId, number == 2 ? "articles" : (number == 3 ? "resources" : "topic")) + "</div>";
         }
 
         private CourseLesson[] GetCourseLessons(int moduleId)

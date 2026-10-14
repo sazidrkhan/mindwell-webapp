@@ -10,7 +10,7 @@ namespace MindWell.Public
         protected string RenderModules()
         {
             // Public visitors preview modules; signed-in users continue into the same module detail flow.
-            DataTable modules = MindWellServices.Query(@"
+            QueryResult modulesResult = MindWellServices.TryQuery(@"
 SELECT lm.ModuleID,
        lm.ModuleName,
        lm.Description,
@@ -26,6 +26,7 @@ WHERE NULLIF(LTRIM(RTRIM(lm.ModuleName)), '') IS NOT NULL
   AND " + MindWellServices.CleanDemoTextWhere("lm.ModuleName") + @"
   AND " + MindWellServices.CleanDemoTextWhere("ISNULL(lm.Description, '')") + @"
 ORDER BY lm.OrderIndex");
+            DataTable modules = modulesResult.Data;
             bool authenticated = SecurityHelper.IsUserAuthenticated();
             string intro = authenticated
                 ? "Continue your learning path across MindWell modules."
@@ -34,9 +35,12 @@ ORDER BY lm.OrderIndex");
 
             var sb = new StringBuilder("<section class='section-header'><h1>Learning Modules</h1><p>")
                 .Append(intro)
-                .Append("</p></section><div class='row'>");
+                .Append("</p></section><div class='catalogue-grid'>");
+            if (modulesResult.HasError)
+                return MindWellServices.RenderDataUnavailable("Learning content is temporarily unavailable: learning modules could not be loaded.");
+
             if (modules.Rows.Count == 0)
-                return MindWellServices.RenderDataUnavailable("Learning content is temporarily unavailable: learning modules returned no rows.");
+                return sb.Append(MindWellServices.RenderEmptyState("No learning modules are available yet.", "Published learning topics will appear here when they are ready.")).Append("</div>").ToString();
 
             foreach (DataRow row in modules.Rows)
             {
@@ -44,7 +48,7 @@ ORDER BY lm.OrderIndex");
                 int lessonCount = MindWellServices.ToInt(row["LessonCount"], 0);
                 int quizCount = MindWellServices.ToInt(row["QuizCount"], 0);
                 int activityCount = MindWellServices.ToInt(row["ActivityCount"], 0);
-                sb.Append("<article class='card module-card'><p class='badge-row'><span class='access-badge'>").Append(authenticated ? "Member access" : "Preview").Append("</span>");
+                sb.Append("<article class='card module-card'>").Append(WellbeingUi.Artwork(MindWellServices.ToInt(row["ModuleID"], 0))).Append("<p class='badge-row'><span class='access-badge'>").Append(authenticated ? "Member access" : "Preview").Append("</span>");
                 if (minutes > 0)
                     sb.Append(" <span class='access-badge'>").Append(minutes).Append(" min</span>");
 

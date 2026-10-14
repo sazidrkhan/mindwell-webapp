@@ -711,9 +711,22 @@ UPDATE LearningModules SET LearningOutcomes='Separate real self-care from avoida
             {
                 try
                 {
+                    // Create in the connection scope. Parameterized commands execute
+                    // in sp_executesql; tables created inside it vanish on return.
                     ExecuteCount(connection, transaction, @"
 IF OBJECT_ID('tempdb..#PollutedUsers') IS NOT NULL DROP TABLE #PollutedUsers;
 CREATE TABLE #PollutedUsers (UserID INT PRIMARY KEY);
+IF OBJECT_ID('tempdb..#PollutedModules') IS NOT NULL DROP TABLE #PollutedModules;
+CREATE TABLE #PollutedModules (ModuleID INT PRIMARY KEY);
+IF OBJECT_ID('tempdb..#PollutedQuizzes') IS NOT NULL DROP TABLE #PollutedQuizzes;
+CREATE TABLE #PollutedQuizzes (QuizID INT PRIMARY KEY);
+IF OBJECT_ID('tempdb..#PollutedQuestions') IS NOT NULL DROP TABLE #PollutedQuestions;
+CREATE TABLE #PollutedQuestions (QuestionID INT PRIMARY KEY);
+IF OBJECT_ID('tempdb..#PollutedActivities') IS NOT NULL DROP TABLE #PollutedActivities;
+CREATE TABLE #PollutedActivities (ActivityID INT PRIMARY KEY);
+IF OBJECT_ID('tempdb..#PollutedTopics') IS NOT NULL DROP TABLE #PollutedTopics;
+CREATE TABLE #PollutedTopics (TopicID INT PRIMARY KEY);");
+                    ExecuteCount(connection, transaction, @"
 INSERT INTO #PollutedUsers (UserID)
 SELECT UserID
 FROM Users
@@ -727,16 +740,12 @@ WHERE Username LIKE @QaPrefix
    OR Email LIKE @ExampleTestEmail
    OR " + PollutionWhere("ISNULL(Username, '')") + " OR " + PollutionWhere("ISNULL(Email, '')") + " OR " + PollutionWhere("ISNULL(FirstName, '')") + " OR " + PollutionWhere("ISNULL(LastName, '')") + @";
 
-IF OBJECT_ID('tempdb..#PollutedModules') IS NOT NULL DROP TABLE #PollutedModules;
-CREATE TABLE #PollutedModules (ModuleID INT PRIMARY KEY);
 INSERT INTO #PollutedModules (ModuleID)
 SELECT ModuleID
 FROM LearningModules
 WHERE NULLIF(LTRIM(RTRIM(ISNULL(ModuleName, ''))), '') IS NULL
    OR " + PollutionWhere("ISNULL(ModuleName, '')") + " OR " + PollutionWhere("ISNULL(Description, '')") + @";
 
-IF OBJECT_ID('tempdb..#PollutedQuizzes') IS NOT NULL DROP TABLE #PollutedQuizzes;
-CREATE TABLE #PollutedQuizzes (QuizID INT PRIMARY KEY);
 INSERT INTO #PollutedQuizzes (QuizID)
 SELECT QuizID
 FROM Quizzes
@@ -744,8 +753,6 @@ WHERE ModuleID IN (SELECT ModuleID FROM #PollutedModules)
    OR NULLIF(LTRIM(RTRIM(ISNULL(QuizTitle, ''))), '') IS NULL
    OR " + PollutionWhere("ISNULL(QuizTitle, '')") + " OR " + PollutionWhere("ISNULL(Description, '')") + @";
 
-IF OBJECT_ID('tempdb..#PollutedQuestions') IS NOT NULL DROP TABLE #PollutedQuestions;
-CREATE TABLE #PollutedQuestions (QuestionID INT PRIMARY KEY);
 INSERT INTO #PollutedQuestions (QuestionID)
 SELECT qq.QuestionID
 FROM QuizQuestions qq
@@ -754,8 +761,6 @@ WHERE qq.QuizID IN (SELECT QuizID FROM #PollutedQuizzes)
    OR NULLIF(LTRIM(RTRIM(ISNULL(qq.QuestionText, ''))), '') IS NULL
    OR " + PollutionWhere("ISNULL(q.QuizTitle, '')") + " OR " + PollutionWhere("ISNULL(qq.QuestionText, '')") + " OR " + PollutionWhere("ISNULL(qq.Explanation, '')") + @";
 
-IF OBJECT_ID('tempdb..#PollutedActivities') IS NOT NULL DROP TABLE #PollutedActivities;
-CREATE TABLE #PollutedActivities (ActivityID INT PRIMARY KEY);
 INSERT INTO #PollutedActivities (ActivityID)
 SELECT ActivityID
 FROM Activities
@@ -764,8 +769,6 @@ WHERE ModuleID IN (SELECT ModuleID FROM #PollutedModules)
    OR NULLIF(LTRIM(RTRIM(ISNULL(Prompt, ''))), '') IS NULL
    OR " + PollutionWhere("ISNULL(Title, '')") + " OR " + PollutionWhere("ISNULL(Prompt, '')") + @";
 
-IF OBJECT_ID('tempdb..#PollutedTopics') IS NOT NULL DROP TABLE #PollutedTopics;
-CREATE TABLE #PollutedTopics (TopicID INT PRIMARY KEY);
 INSERT INTO #PollutedTopics (TopicID)
 SELECT TopicID
 FROM ForumTopics

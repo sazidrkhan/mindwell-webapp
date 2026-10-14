@@ -35,7 +35,7 @@ MindWell is a coursework web application built with classic ASP.NET Web Forms an
 - Automatic SQL Server LocalDB setup on first application startup.
 - Coursework-level authentication, authorization, CSRF validation, and password hashing.
 - Optional TOTP multi-factor authentication flow with QR code generation through QRCoder.
-- Custom Calm & Organic interface with responsive layouts, light/dark theme support, and vanilla JavaScript enhancements.
+- Playful Calm interface with responsive layouts, light/dark theme support, self-hosted typography, and vanilla JavaScript enhancements.
 - Administrator tools for managing users, modules, content, quizzes, feedback, and demo data quality.
 
 ## Feature Overview
@@ -46,7 +46,7 @@ MindWell is a coursework web application built with classic ASP.NET Web Forms an
 | Learner area | Dashboard, profile, password changes, progress tracking, quizzes, quiz results, mood tracker, mood history, reflection journal, forum, and activity submissions. |
 | Admin area | User management, module management, content/resource management, quiz management, feedback/contact review, and dashboard summaries. |
 | Data layer | SQL Server LocalDB database, schema scripts, automatic startup initialization, seeded learning content, and parameterized query helpers. |
-| UI layer | Shared master pages, custom CSS design system, responsive cards/tables, accessible form patterns, password toggles, theme toggle, and progressive JavaScript. |
+| UI layer | Shared master pages, Playful Calm CSS design system, illustrated responsive cards/tables, accessible form patterns, password toggles, theme toggle, and progressive JavaScript. |
 | Security layer | Forms Authentication, role checks, session restoration, CSRF tokens, output encoding, password hashing, security headers, and optional TOTP verification. |
 
 ## Tech Stack

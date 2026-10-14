@@ -11,6 +11,7 @@ namespace MindWell
 {
     public class Global : HttpApplication
     {
+        private const string MindWellDatabaseInitializationFailed = "MindWellDatabaseInitializationFailed";
         private static readonly object LogLock = new object();
 
         protected void Application_Start(object sender, EventArgs e)
@@ -21,6 +22,7 @@ namespace MindWell
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
 
             LogDiagnostic("Application_Start");
+            Application[MindWellDatabaseInitializationFailed] = false;
 
             try
             {
@@ -30,6 +32,7 @@ namespace MindWell
             }
             catch (Exception ex)
             {
+                Application[MindWellDatabaseInitializationFailed] = true;
                 LogDiagnostic("Database initialization failed", ex);
             }
         }

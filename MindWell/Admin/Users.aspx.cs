@@ -23,14 +23,19 @@ namespace MindWell.Admin
             string search = SecurityHelper.SafeTrim(Request.QueryString["q"], 50);
             int editUserId = MindWellServices.ToInt(Request.QueryString["edit"], 0);
             int resetRequestId = MindWellServices.ToInt(Request.QueryString["resetRequest"], 0);
-            DataTable roles = MindWellServices.Query("SELECT RoleID, RoleName FROM UserRoles ORDER BY RoleID");
-            DataTable users = MindWellServices.Query(@"SELECT u.UserID, u.Username, u.Email, u.FirstName, u.LastName, u.RoleID, r.RoleName, u.IsActive, u.IsBanned, u.CreatedDate FROM Users u INNER JOIN UserRoles r ON u.RoleID=r.RoleID WHERE " + ExcludeTestDataWhere + @" AND (@Search='' OR u.Username LIKE '%' + @Search + '%' OR u.Email LIKE '%' + @Search + '%') ORDER BY u.CreatedDate DESC", new SqlParameter("@Search", search));
+            QueryResult rolesResult = MindWellServices.TryQuery("SELECT RoleID, RoleName FROM UserRoles ORDER BY RoleID");
+            QueryResult usersResult = MindWellServices.TryQuery(@"SELECT u.UserID, u.Username, u.Email, u.FirstName, u.LastName, u.RoleID, r.RoleName, u.IsActive, u.IsBanned, u.CreatedDate FROM Users u INNER JOIN UserRoles r ON u.RoleID=r.RoleID WHERE " + ExcludeTestDataWhere + @" AND (@Search='' OR u.Username LIKE '%' + @Search + '%' OR u.Email LIKE '%' + @Search + '%') ORDER BY u.CreatedDate DESC", new SqlParameter("@Search", search));
+            if (rolesResult.HasError || usersResult.HasError)
+                return message + MindWellServices.RenderDataUnavailable("User management data could not be loaded.");
+
+            DataTable roles = rolesResult.Data;
+            DataTable users = usersResult.Data;
 
             var sb = new StringBuilder("<p class='back-link'><a class='btn btn-outline btn-sm' href='Dashboard.aspx'>Back to Admin Dashboard</a></p><section class='section-header'><h1>User Management</h1><p>Search, update profile fields, change roles, and control user account status.</p></section>")
                 .Append(message)
                 .Append(RenderResetRequestAlert(resetRequestId, editUserId))
                 .Append(RenderPasswordResetNotification())
-                .Append("<section class='card'><div class='form-group'><label for='userSearch'>Search users</label><div class='button-row'><input id='userSearch' placeholder='Search users' value='")
+                .Append("<section class='card'><div class='form-group'><label for='userSearch'>Search users</label><div class='button-row'><input id='userSearch' name='q' autocomplete='off' placeholder='Search users' value='")
                 .Append(MindWellServices.Encode(search))
                 .Append("' /> <button type='button' class='btn btn-primary' onclick=\"window.location='Users.aspx?q='+encodeURIComponent(document.getElementById('userSearch').value)\">Search</button></div></div><div class='table-scroll table-responsive'><table class='data-table admin-users-table'><tr><th>Username</th><th>Email</th><th>First Name / Last Name</th><th>Role</th><th>Status</th><th>Actions</th></tr>");
 
@@ -169,12 +174,12 @@ namespace MindWell.Admin
             bool active = Convert.ToBoolean(row["IsActive"]);
             bool banned = Convert.ToBoolean(row["IsBanned"]);
 
-            sb.Append("<tr id='user-").Append(id).Append("' class='editing-row'><td><input type='hidden' name='userId' value='").Append(id).Append("' /><input name='username_").Append(id).Append("' value='").Append(MindWellServices.Encode(row["Username"])).Append("' /></td><td><input name='email_").Append(id).Append("' value='").Append(MindWellServices.Encode(row["Email"])).Append("' /></td><td><input name='firstName_").Append(id).Append("' placeholder='First Name' value='").Append(MindWellServices.Encode(row["FirstName"])).Append("' /><input name='lastName_").Append(id).Append("' placeholder='Last Name' value='").Append(MindWellServices.Encode(row["LastName"])).Append("' /></td><td><select name='roleId_").Append(id).Append("'>");
+            sb.Append("<tr id='user-").Append(id).Append("' class='editing-row'><td><input type='hidden' id='userId_").Append(id).Append("' name='userId' value='").Append(id).Append("' /><label for='username_").Append(id).Append("'>Username</label><input id='username_").Append(id).Append("' name='username_").Append(id).Append("' autocomplete='username' aria-describedby='userEditHelp_").Append(id).Append("' value='").Append(MindWellServices.Encode(row["Username"])).Append("' /></td><td><label for='email_").Append(id).Append("'>Email</label><input id='email_").Append(id).Append("' name='email_").Append(id).Append("' autocomplete='email' aria-describedby='userEditHelp_").Append(id).Append("' value='").Append(MindWellServices.Encode(row["Email"])).Append("' /></td><td><label for='firstName_").Append(id).Append("'>First name</label><input id='firstName_").Append(id).Append("' name='firstName_").Append(id).Append("' autocomplete='given-name' aria-describedby='userEditHelp_").Append(id).Append("' placeholder='First Name' value='").Append(MindWellServices.Encode(row["FirstName"])).Append("' /><label for='lastName_").Append(id).Append("'>Last name</label><input id='lastName_").Append(id).Append("' name='lastName_").Append(id).Append("' autocomplete='family-name' aria-describedby='userEditHelp_").Append(id).Append("' placeholder='Last Name' value='").Append(MindWellServices.Encode(row["LastName"])).Append("' /><small id='userEditHelp_").Append(id).Append("' class='form-helper'>Update profile fields, role, and account status.</small></td><td><label for='roleId_").Append(id).Append("'>Role</label><select id='roleId_").Append(id).Append("' name='roleId_").Append(id).Append("' autocomplete='off' aria-describedby='userEditHelp_").Append(id).Append("'>");
             AppendRoleOptions(sb, roles, MindWellServices.ToInt(row["RoleID"], 2));
-            sb.Append("</select></td><td><select name='isActive_").Append(id).Append("'><option value='1'").Append(active ? " selected" : string.Empty).Append(">Active</option><option value='0'").Append(!active ? " selected" : string.Empty).Append(">Inactive</option></select><select name='isBanned_").Append(id).Append("'><option value='0'").Append(!banned ? " selected" : string.Empty).Append(">Allowed</option><option value='1'").Append(banned ? " selected" : string.Empty).Append(">Banned</option></select></td><td><div class='button-row'><button type='submit' name='userAction' value='save:").Append(id).Append("' class='btn btn-primary btn-sm'>Save</button><a class='btn btn-sm' href='Users.aspx#user-").Append(id).Append("'>Cancel</a></div></td></tr>")
-                .Append("<tr class='editing-row password-reset-row'><td colspan='6'><div class='password-reset-panel'><h3>Reset Password</h3><div class='button-row password-reset-actions'><div class='password-field'><input type='password' name='tempPassword' placeholder='Set temporary password' class='form-control' autocomplete='new-password' />")
+            sb.Append("</select></td><td><label for='isActive_").Append(id).Append("'>Status</label><select id='isActive_").Append(id).Append("' name='isActive_").Append(id).Append("' autocomplete='off' aria-describedby='userEditHelp_").Append(id).Append("'><option value='1'").Append(active ? " selected" : string.Empty).Append(">Active</option><option value='0'").Append(!active ? " selected" : string.Empty).Append(">Inactive</option></select><label for='isBanned_").Append(id).Append("'>Access</label><select id='isBanned_").Append(id).Append("' name='isBanned_").Append(id).Append("' autocomplete='off' aria-describedby='userEditHelp_").Append(id).Append("'><option value='0'").Append(!banned ? " selected" : string.Empty).Append(">Allowed</option><option value='1'").Append(banned ? " selected" : string.Empty).Append(">Banned</option></select></td><td><div class='button-row'><button type='submit' name='userAction' value='save:").Append(id).Append("' class='btn btn-primary btn-sm'>Save</button><a class='btn btn-sm' href='Users.aspx#user-").Append(id).Append("'>Cancel</a></div></td></tr>")
+                .Append("<tr class='editing-row password-reset-row'><td colspan='6'><div class='password-reset-panel'><h3>Reset Password</h3><div class='button-row password-reset-actions'><div class='password-field'><label for='tempPassword_").Append(id).Append("'>Temporary password</label><input id='tempPassword_").Append(id).Append("' type='password' name='tempPassword' placeholder='Set temporary password' class='form-control' autocomplete='new-password' aria-describedby='tempPasswordHelp_").Append(id).Append(" passwordGeneratorStatus_").Append(id).Append("' />")
                 .Append(PasswordToggleMarkup())
-                .Append("</div><button type='button' class='btn btn-outline btn-sm' data-password-generate>Generate</button><button type='submit' name='userAction' value='resetPwd' class='btn btn-primary btn-sm'>Set Temp Password</button></div><small class='form-helper'>The user will be asked to choose a new password after signing in.</small></div></td></tr>");
+                .Append("</div><button type='button' class='btn btn-outline btn-sm' data-password-generate>Generate</button><button type='submit' name='userAction' value='resetPwd' class='btn btn-primary btn-sm'>Set Temp Password</button></div><small id='passwordGeneratorStatus_").Append(id).Append("' class='form-helper password-generator-status' data-password-generator-status role='status' aria-live='polite'></small><small id='tempPasswordHelp_").Append(id).Append("' class='form-helper'>The user will be asked to choose a new password after signing in.</small></div></td></tr>");
         }
 
         private string RenderResetRequestAlert(int resetRequestId, int editUserId)
@@ -182,7 +187,7 @@ namespace MindWell.Admin
             if (resetRequestId <= 0 || editUserId <= 0)
                 return string.Empty;
 
-            DataTable request = MindWellServices.Query(@"
+            QueryResult requestResult = MindWellServices.TryQuery(@"
 SELECT TOP 1 c.ContactID, c.Email, c.CreatedDate
 FROM Contacts c
 INNER JOIN Users u ON c.Email = u.Email
@@ -192,6 +197,10 @@ WHERE c.ContactID=@ContactID
                 new SqlParameter("@ContactID", resetRequestId),
                 new SqlParameter("@UserID", editUserId));
 
+            if (requestResult.HasError)
+                return MindWellServices.RenderDataUnavailable("Password reset request context is temporarily unavailable.");
+
+            DataTable request = requestResult.Data;
             if (request.Rows.Count == 0)
                 return "<div class='alert alert-warning'>Password reset request context was not found. Review Manage Feedback if the request still needs attention.</div>";
 
@@ -200,14 +209,19 @@ WHERE c.ContactID=@ContactID
 
         private string RenderPasswordResetNotification()
         {
-            DataTable requests = MindWellServices.Query(@"
+            QueryResult requestsResult = MindWellServices.TryQuery(@"
 SELECT TOP 5 c.ContactID, c.Email, c.CreatedDate, u.UserID, u.Username
 FROM Contacts c
 LEFT JOIN Users u ON c.Email = u.Email
 WHERE c.Subject = 'Password reset request'
   AND ISNULL(c.IsResolved, 0) = 0
 ORDER BY c.CreatedDate DESC");
-            int requestCount = MindWellServices.ToInt(MindWellServices.Scalar("SELECT COUNT(*) FROM Contacts WHERE Subject = 'Password reset request' AND ISNULL(IsResolved, 0) = 0"), 0);
+            ScalarResult requestCountResult = MindWellServices.TryScalar("SELECT COUNT(*) FROM Contacts WHERE Subject = 'Password reset request' AND ISNULL(IsResolved, 0) = 0");
+            if (requestsResult.HasError || requestCountResult.HasError)
+                return MindWellServices.RenderDataUnavailable("Password reset notifications are temporarily unavailable.");
+
+            DataTable requests = requestsResult.Data;
+            int requestCount = MindWellServices.ToInt(requestCountResult.Value, 0);
 
             var sb = new StringBuilder("<section class='reset-notification-bar' aria-label='Password reset notifications'><button type='button' class='reset-notification-toggle' data-reset-notification-toggle aria-expanded='false' aria-controls='resetNotificationPanel'><span>Password reset requests</span><span class='reset-notification-badge'>")
                 .Append(requestCount)
