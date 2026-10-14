@@ -14,20 +14,25 @@
                 var stored = window.localStorage.getItem('mindwell-theme');
                 var theme = stored === 'light' || stored === 'dark' ? stored : 'dark';
                 document.documentElement.setAttribute('data-theme', theme);
+                document.documentElement.setAttribute('data-motion', window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'off' : 'auto');
             } catch (error) {
                 document.documentElement.setAttribute('data-theme', 'dark');
             }
         })();
     </script>
     <!-- CSS -->
-    <link rel="stylesheet" href="/Content/Site.css?v=20260530-final-submission">
+    <link rel="preload" href="~/Content/fonts/lexend-latin.woff2" runat="server" as="font" type="font/woff2" crossorigin="anonymous" />
+    <link rel="stylesheet" href="~/Content/Site.css?v=20260928-playful-calm" runat="server" />
+    <link rel="stylesheet" href="~/Content/PlayfulCalm.css?v=20260928-playful-calm" runat="server" />
     <link rel="icon" href="~/Images/favicon.ico" type="image/x-icon" runat="server">
-    <script src='<%= ResolveUrl("~/Scripts/mindwell-ui.js?v=20260530-final-submission") %>' defer></script>
+    <script src='<%= ResolveUrl("~/Scripts/mindwell-ui.js?v=20260928-playful-calm") %>' defer></script>
+    <script src='<%= ResolveUrl("~/Scripts/mindwell-experience.js?v=20260928-playful-calm") %>' defer></script>
     
     <asp:ContentPlaceHolder ID="HeadContent" runat="server">
     </asp:ContentPlaceHolder>
 </head>
 <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
     <form id="form1" runat="server">
         <%= MindWell.SecurityHelper.RenderCsrfToken() %>
         <!-- Navigation Bar -->
@@ -36,8 +41,12 @@
                 <a href="~/Default.aspx" class="navbar-brand" runat="server">
                     <strong>MindWell</strong>
                 </a>
-                
-                <%= RenderNavigation() %>
+                <button type="button" class="nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="primaryNav" aria-label="Open navigation">
+                    <span class="nav-toggle-label">Menu</span>
+                </button>
+                <div id="primaryNav" class="primary-nav">
+                    <%= RenderNavigation() %>
+                </div>
                 <div class="navbar-actions">
                     <button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch to dark mode" aria-pressed="false">
                         <span class="theme-toggle-slider" aria-hidden="true"></span>
@@ -54,7 +63,7 @@
         </nav>
 
         <!-- Main Content -->
-        <main class="container">
+        <main id="main-content" class="container" tabindex="-1">
             <asp:ContentPlaceHolder ID="MainContent" runat="server">
             </asp:ContentPlaceHolder>
         </main>

@@ -13,6 +13,7 @@ namespace MindWell.User
             // Saves or updates one mood entry per user/date, then reloads chart data for display.
             int userId = SecurityHelper.GetCurrentUserId() ?? 0;
             string message = string.Empty;
+            string notes = string.Empty;
             int selectedMood = 3;
             if (IsPostBack && Request.Form["moodAction"] == "save")
             {
@@ -21,20 +22,27 @@ namespace MindWell.User
                 if (mood < 1) mood = 1;
                 if (mood > 5) mood = 5;
                 selectedMood = mood;
-                string notes = SecurityHelper.SafeTrim(Request.Form["notes"], 500);
+                notes = SecurityHelper.SafeTrim(Request.Form["notes"], 500);
                 if (!SecurityHelper.IsPlainTextSafe(notes))
                 {
-                    message = "<div class='alert alert-danger'>" + SecurityHelper.PlainTextValidationMessage + "</div>";
+                    message = "<div class='alert alert-danger' role='alert'>" + SecurityHelper.PlainTextValidationMessage + "</div>";
                 }
                 else
                 {
-                    MindWellServices.NonQuery(@"IF EXISTS (SELECT 1 FROM MoodEntries WHERE UserID=@UserID AND EntryDate=@EntryDate) UPDATE MoodEntries SET MoodLevel=@MoodLevel, Notes=@Notes WHERE UserID=@UserID AND EntryDate=@EntryDate ELSE INSERT INTO MoodEntries (UserID, EntryDate, MoodLevel, Notes, CreatedDate) VALUES (@UserID, @EntryDate, @MoodLevel, @Notes, GETDATE())",
+                    int saved = MindWellServices.NonQuery(@"IF EXISTS (SELECT 1 FROM MoodEntries WHERE UserID=@UserID AND EntryDate=@EntryDate) UPDATE MoodEntries SET MoodLevel=@MoodLevel, Notes=@Notes WHERE UserID=@UserID AND EntryDate=@EntryDate ELSE INSERT INTO MoodEntries (UserID, EntryDate, MoodLevel, Notes, CreatedDate) VALUES (@UserID, @EntryDate, @MoodLevel, @Notes, GETDATE())",
                         new SqlParameter("@UserID", userId), new SqlParameter("@EntryDate", date), new SqlParameter("@MoodLevel", mood), new SqlParameter("@Notes", notes));
-                    message = "<div class='alert alert-success'>Mood entry saved.</div>";
+                    if (saved > 0)
+                    {
+                        message = "<div class='alert alert-success' role='status'>Mood entry saved. Thank you for checking in with yourself.</div>";
+                        notes = string.Empty;
+                    }
+                    else
+                        message = "<div class='alert alert-danger' role='alert'>We could not save your mood entry. Your notes are still here; please try again.</div>";
                 }
             }
 
-            DataTable moods = MindWellServices.Query("SELECT CONVERT(varchar(10), EntryDate, 120) AS EntryDate, MoodLevel FROM MoodEntries WHERE UserID=@UserID ORDER BY EntryDate", new SqlParameter("@UserID", userId));
+            QueryResult moodsResult = MindWellServices.TryQuery("SELECT CONVERT(varchar(10), EntryDate, 120) AS EntryDate, MoodLevel FROM MoodEntries WHERE UserID=@UserID ORDER BY EntryDate", new SqlParameter("@UserID", userId));
+            DataTable moods = moodsResult.Data;
             string json = MindWellServices.JsonArray(moods, "EntryDate", "MoodLevel");
             int count = moods.Rows.Count;
             int latest = count == 0 ? selectedMood : MindWellServices.ToInt(moods.Rows[count - 1]["MoodLevel"], selectedMood);
@@ -55,45 +63,21 @@ namespace MindWell.User
             AppendMoodOption(sb, 4, "Good", selectedMood);
             AppendMoodOption(sb, 5, "Great", selectedMood);
             sb.Append("</fieldset>")
-                .Append("<div class='form-group'><label>Notes</label><textarea name='notes' placeholder='What influenced your mood today?'></textarea><small class='form-helper'>A short wellbeing insight helps make your trend easier to understand.</small></div>")
+                .Append("<p class='mood-selection-note' data-mood-note role='status'>Every feeling has a place here.</p>")
+                .Append("<div class='form-group'><label for='moodNotes'>Anything on your mind? <small>(optional)</small></label><textarea id='moodNotes' name='notes' maxlength='500' rows='3' autocomplete='off' aria-describedby='moodNotesHelp' placeholder='What influenced your mood today?'>").Append(MindWellServices.Encode(notes)).Append("</textarea><small id='moodNotesHelp' class='form-helper'>A short wellbeing insight helps make your trend easier to understand. Drafts stay on this page until you save.</small></div>")
                 .Append("<div class='button-row'><button class='btn btn-primary' type='submit'>Save Mood</button><a class='btn btn-outline' href='MoodHistory.aspx'>View Mood History</a></div>")
-                .Append("</section>")
-                .Append("<section class='row cols-3'>")
-                .Append("<article class='card mood-summary-card'><h2>Latest</h2><p class='stat-number'>").Append(latest).Append("/5</p><p>").Append(MoodLabel(latest)).Append("</p></article>")
+                .Append("</section>");
+            if (moodsResult.HasError)
+                return sb.Append(MindWellServices.RenderDataUnavailable("Your saved mood entries could not be loaded. Please try again later.")).ToString();
+            sb.Append("<section class='row cols-3'>")
+                .Append("<article class='card mood-summary-card'><h2>Latest</h2><p class='stat-number'>").Append(count == 0 ? "—" : latest + "/5").Append("</p><p>").Append(count == 0 ? "No entries yet" : MoodLabel(latest)).Append("</p></article>")
                 .Append("<article class='card mood-summary-card'><h2>Average</h2><p class='stat-number'>").Append(average).Append("</p><p>Across saved entries</p></article>")
                 .Append("<article class='card mood-summary-card'><h2>Entries</h2><p class='stat-number'>").Append(count).Append("</p><p>Your private mood log</p></article>")
                 .Append("</section>")
-                .Append("<section class='card mood-chart-card'><h2>Mood Trend</h2><div class='chart-filter'><button type='button' class='chart-filter-btn chart-filter-btn--active' data-range='weekly'>Weekly</button><button type='button' class='chart-filter-btn' data-range='monthly'>Monthly</button></div><p id='moodChartEmpty' style='display:none;text-align:center;padding:2rem 0;color:var(--text-secondary);'>No mood entries in this range yet.</p><canvas id='moodChart'></canvas></section>")
-                .Append("<script>var moodData=").Append(json).Append(@";
-(function(){
-  var moodNames={1:'Very Low',2:'Low',3:'Okay',4:'Good',5:'Great'};
-  function sliceData(days){
-    var cutoff=new Date();cutoff.setDate(cutoff.getDate()-days);
-    return moodData.filter(function(x){return new Date(x.label)>=cutoff;});
-  }
-  function buildChart(days){
-    var ctx=document.getElementById('moodChart');
-    var empty=document.getElementById('moodChartEmpty');
-    if(!ctx)return;
-    if(ctx._mwChart){ctx._mwChart.destroy();ctx._mwChart=null;}
-    var d=sliceData(days);
-    if(d.length===0){ctx.style.display='none';if(empty)empty.style.display='block';return;}
-    ctx.style.display='';if(empty)empty.style.display='none';
-    var tickColor=getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim()||'#5D6975';
-    ctx._mwChart=new Chart(ctx,{type:'line',data:{labels:d.map(function(x){return x.label;}),datasets:[{label:'Mood',data:d.map(function(x){return x.value;}),borderColor:'#2F6F6D',backgroundColor:'rgba(47,111,109,.18)',tension:.35,fill:true,pointRadius:4}]},options:{responsive:true,scales:{y:{min:1,max:5,ticks:{stepSize:1,color:tickColor,callback:function(v){return moodNames[v]||'';}},grid:{color:'rgba(107,168,168,.1)'}},x:{ticks:{color:tickColor}}}}});
-  }
-  if(window.Chart){
-    buildChart(7);
-    document.querySelectorAll('.chart-filter-btn').forEach(function(btn){
-      btn.addEventListener('click',function(){
-        document.querySelectorAll('.chart-filter-btn').forEach(function(b){b.classList.remove('chart-filter-btn--active');});
-        btn.classList.add('chart-filter-btn--active');
-        buildChart(btn.getAttribute('data-range')==='monthly'?30:7);
-      });
-    });
-  }
-})();
-</script>");
+                .Append("<section class='card mood-chart-card'><h2>Mood Trend</h2><p class='form-helper'>A little perspective on your days. Every feeling counts.</p><div class='chart-filter' role='group' aria-label='Mood chart range'><button type='button' class='chart-filter-btn chart-filter-btn--active' data-range='weekly' aria-pressed='true'>Weekly</button><button type='button' class='chart-filter-btn' data-range='monthly' aria-pressed='false'>Monthly</button></div><p id='moodChartEmpty' hidden>No mood entries in this range yet.</p><p id='moodChartSummary' class='form-helper' role='status'></p><div class='mood-chart-wrap'><canvas id='moodChart' role='img' aria-label='Saved mood entries over time' aria-describedby='moodChartSummary'></canvas></div><details class='mood-data-table'><summary>View saved entries as a table</summary><table><caption class='sr-only'>All saved mood entries</caption><thead><tr><th scope='col'>Date</th><th scope='col'>Mood</th></tr></thead><tbody>");
+            foreach (DataRow row in moods.Rows)
+                sb.Append("<tr><td>").Append(MindWellServices.Encode(row["EntryDate"])).Append("</td><td>").Append(MoodLabel(MindWellServices.ToInt(row["MoodLevel"], 3))).Append("</td></tr>");
+            sb.Append("</tbody></table></details></section><script id='mood-data' type='application/json'>").Append(json).Append("</script>");
             return sb.ToString();
         }
 
@@ -102,7 +86,7 @@ namespace MindWell.User
             sb.Append("<label class='mood-option-card'><input type='radio' name='moodLevel' value='").Append(value).Append("'");
             if (value == selectedMood)
                 sb.Append(" checked");
-            sb.Append(" /><span class='mood-emoji'>").Append(value).Append("</span><strong>").Append(label).Append("</strong><small>").Append(value).Append("/5</small></label>");
+            sb.Append(" /><span class='mood-emoji'>").Append(WellbeingUi.MoodFace(value)).Append("</span><strong>").Append(label).Append("</strong><small>").Append(value).Append("/5</small></label>");
         }
 
         private static string MoodLabel(int value)

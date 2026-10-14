@@ -13,9 +13,9 @@ namespace MindWell.User
             // Stores the submitted activity response and lists recent submissions for confirmation/history.
             int userId = SecurityHelper.GetCurrentUserId() ?? 0;
             int moduleFilter = 0;
-            string message = Request.QueryString["invalidInput"] == "1" ? "<div class='alert alert-danger'>" + SecurityHelper.PlainTextValidationMessage + "</div>" : string.Empty;
+            string message = Request.QueryString["invalidInput"] == "1" ? "<div id='assignmentMessage' class='alert alert-danger' role='alert'>" + SecurityHelper.PlainTextValidationMessage + "</div>" : string.Empty;
             if (Request.QueryString["ModuleID"] != null && !SecurityHelper.TryGetPositiveIntQuery("ModuleID", out moduleFilter))
-                message = "<div class='alert alert-danger'>Invalid module selected.</div>";
+                message = "<div id='assignmentMessage' class='alert alert-danger' role='alert'>Invalid module selected.</div>";
 
             if (IsPostBack)
             {
@@ -23,22 +23,22 @@ namespace MindWell.User
                 string response = SecurityHelper.SafeTrim(Request.Unvalidated.Form["response"], 5000);
                 if (!SecurityHelper.TryGetPositiveIntForm("activityId", out activityId))
                 {
-                    message = "<div class='alert alert-danger'>Please choose a guided activity.</div>";
+                    message = "<div id='assignmentMessage' class='alert alert-danger' role='alert'>Please choose a guided activity.</div>";
                 }
                 else
                 {
                     DataTable activity = MindWellServices.Query("SELECT TOP 1 ActivityID, ModuleID, Title FROM Activities WHERE ActivityID=@ActivityID AND IsPublished=1", new SqlParameter("@ActivityID", activityId));
                     if (activity.Rows.Count == 0)
                     {
-                        message = "<div class='alert alert-danger'>Please choose a guided activity.</div>";
+                        message = "<div id='assignmentMessage' class='alert alert-danger' role='alert'>Please choose a guided activity.</div>";
                     }
                     else if (SecurityHelper.IsBlankAfterTrim(response))
                     {
-                        message = "<div class='alert alert-danger'>Response is required.</div>";
+                        message = "<div id='assignmentMessage' class='alert alert-danger' role='alert'>Response is required.</div>";
                     }
                     else if (!SecurityHelper.IsPlainTextSafe(response))
                     {
-                        message = "<div class='alert alert-danger'>" + SecurityHelper.PlainTextValidationMessage + "</div>";
+                        message = "<div id='assignmentMessage' class='alert alert-danger' role='alert'>" + SecurityHelper.PlainTextValidationMessage + "</div>";
                     }
                     else
                     {
@@ -59,12 +59,13 @@ namespace MindWell.User
 
             foreach (DataRow activity in activities.Rows)
             {
-                sb.Append("<label class='guided-activity-card'><input type='radio' name='activityId' value='").Append(activity["ActivityID"]).Append("' /> <span class='content-kicker'>")
+                string activityId = MindWellServices.Encode(activity["ActivityID"]);
+                sb.Append("<label for='activity-").Append(activityId).Append("' class='guided-activity-card'><input id='activity-").Append(activityId).Append("' type='radio' name='activityId' value='").Append(activity["ActivityID"]).Append("' autocomplete='off' /> <span class='content-kicker'>")
                     .Append(MindWellServices.Encode(activity["ModuleName"])).Append("</span><strong>").Append(MindWellServices.Encode(activity["Title"])).Append("</strong><span>Prompt: ")
                     .Append(MindWellServices.Encode(activity["Prompt"])).Append("</span></label>");
             }
 
-            sb.Append("</div><div class='form-group'><label>Your response</label><textarea name='response' rows='6'></textarea></div><button class='btn btn-primary'>Submit Activity</button></section><section class='card'><h2>Recent Submissions</h2>");
+            sb.Append("</div><p id='assignmentPrivacy' class='form-helper'>Drafts are not stored in browser storage.</p><div class='form-group'><label for='assignmentResponse'>Your response</label><textarea id='assignmentResponse' name='response' rows='6' autocomplete='off' aria-describedby='assignmentPrivacy'></textarea></div><button class='btn btn-primary'>Submit Activity</button></section><section class='card'><h2>Recent Submissions</h2>");
             if (submissions.Rows.Count == 0)
                 sb.Append("<div class='empty-state'><p>No activity submissions yet.</p></div>");
 

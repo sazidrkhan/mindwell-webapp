@@ -14,11 +14,15 @@ namespace MindWell.Admin
             // Processes form actions before rendering the insert form and current module table.
             string message = HandleModulePost();
             int editModuleId = MindWellServices.ToInt(Request.QueryString["edit"], 0);
-            DataTable modules = MindWellServices.Query("SELECT lm.ModuleID, lm.ModuleName, lm.Description, lm.OrderIndex FROM LearningModules lm WHERE " + MindWellServices.ActiveModuleWhere + " AND " + MindWellServices.CleanDemoTextWhere("lm.ModuleName") + " AND " + MindWellServices.CleanDemoTextWhere("ISNULL(lm.Description, '')") + " ORDER BY lm.OrderIndex, lm.ModuleName");
+            QueryResult modulesResult = MindWellServices.TryQuery("SELECT lm.ModuleID, lm.ModuleName, lm.Description, lm.OrderIndex FROM LearningModules lm WHERE " + MindWellServices.ActiveModuleWhere + " AND " + MindWellServices.CleanDemoTextWhere("lm.ModuleName") + " AND " + MindWellServices.CleanDemoTextWhere("ISNULL(lm.Description, '')") + " ORDER BY lm.OrderIndex, lm.ModuleName");
+            if (modulesResult.HasError)
+                return message + MindWellServices.RenderDataUnavailable("Learning content is temporarily unavailable: module data could not be loaded.");
+
+            DataTable modules = modulesResult.Data;
 
             var sb = new StringBuilder("<p class='back-link'><a class='btn btn-outline btn-sm' href='Dashboard.aspx'>Back to Admin Dashboard</a></p><section class='section-header'><h1>Manage Modules</h1><p>Add, update, archive, or safely delete learning modules.</p></section>")
                 .Append(message)
-                .Append("<details class='card admin-entry-panel'><summary>Insert Module</summary><div class='admin-entry-body'><input type='hidden' name='moduleId' value='0' /><label>Name</label><input name='moduleName' data-validation-group='module-add' /><label>Description</label><textarea class='module-description' name='description' rows='4' data-validation-group='module-add'></textarea><label>Order</label><input type='number' name='orderIndex' value='1' /><p class='page-actions'><button name='moduleAction' value='insert' class='btn btn-primary'>Add Module</button></p></div></details><details class='card admin-list-panel' open><summary>Existing Modules (").Append(modules.Rows.Count).Append(" shown)</summary><div class='admin-list-body'><div class='table-responsive'><table class='data-table module-table'><tr><th>Name</th><th>Description</th><th>Order</th><th>Actions</th></tr>");
+                .Append("<details class='card admin-entry-panel'><summary>Insert Module</summary><div class='admin-entry-body'><p id='moduleAddHelp' class='form-helper'>Use a descriptive name and plain-text summary.</p><input type='hidden' name='moduleId' value='0' /><label for='moduleName'>Name</label><input id='moduleName' name='moduleName' autocomplete='off' aria-describedby='moduleAddHelp' data-validation-group='module-add' /><label for='moduleDescription'>Description</label><textarea id='moduleDescription' class='module-description' name='description' rows='4' autocomplete='off' aria-describedby='moduleAddHelp' data-validation-group='module-add'></textarea><label for='moduleOrderIndex'>Order</label><input id='moduleOrderIndex' type='number' name='orderIndex' value='1' autocomplete='off' aria-describedby='moduleAddHelp' /><p class='page-actions'><button name='moduleAction' value='insert' class='btn btn-primary'>Add Module</button></p></div></details><details class='card admin-list-panel' open><summary>Existing Modules (").Append(modules.Rows.Count).Append(" shown)</summary><div class='admin-list-body'><div class='table-responsive'><table class='data-table module-table'><tr><th>Name</th><th>Description</th><th>Order</th><th>Actions</th></tr>");
 
             foreach (DataRow row in modules.Rows)
             {
@@ -81,7 +85,10 @@ namespace MindWell.Admin
             if (action == "delete")
             {
                 // Deletion is only allowed when no learning content or user progress depends on the module.
-                if (ModuleHasRelatedData(id))
+                bool? hasRelatedData = ModuleHasRelatedData(id);
+                if (!hasRelatedData.HasValue)
+                    return MindWellServices.RenderDataUnavailable("Module relationships could not be verified, so the module was not deleted.");
+                if (hasRelatedData.Value)
                     return "<div class='alert alert-warning'>Module has related articles, quizzes, or progress. Archive it instead, or remove related data first.</div>";
 
                 int rowsAffected = MindWellServices.NonQuery("DELETE FROM LearningModules WHERE ModuleID=@ModuleID", new SqlParameter("@ModuleID", id));
@@ -103,11 +110,17 @@ namespace MindWell.Admin
             return string.Empty;
         }
 
-        private bool ModuleHasRelatedData(int moduleId)
+        private bool? ModuleHasRelatedData(int moduleId)
         {
-            int articleCount = MindWellServices.ToInt(MindWellServices.Scalar("SELECT COUNT(*) FROM Articles WHERE ModuleID=@ModuleID", new SqlParameter("@ModuleID", moduleId)), 0);
-            int quizCount = MindWellServices.ToInt(MindWellServices.Scalar("SELECT COUNT(*) FROM Quizzes WHERE ModuleID=@ModuleID", new SqlParameter("@ModuleID", moduleId)), 0);
-            int progressCount = MindWellServices.ToInt(MindWellServices.Scalar("SELECT COUNT(*) FROM UserProgress WHERE ModuleID=@ModuleID", new SqlParameter("@ModuleID", moduleId)), 0);
+            ScalarResult articleResult = MindWellServices.TryScalar("SELECT COUNT(*) FROM Articles WHERE ModuleID=@ModuleID", new SqlParameter("@ModuleID", moduleId));
+            ScalarResult quizResult = MindWellServices.TryScalar("SELECT COUNT(*) FROM Quizzes WHERE ModuleID=@ModuleID", new SqlParameter("@ModuleID", moduleId));
+            ScalarResult progressResult = MindWellServices.TryScalar("SELECT COUNT(*) FROM UserProgress WHERE ModuleID=@ModuleID", new SqlParameter("@ModuleID", moduleId));
+            if (articleResult.HasError || quizResult.HasError || progressResult.HasError)
+                return null;
+
+            int articleCount = MindWellServices.ToInt(articleResult.Value, 0);
+            int quizCount = MindWellServices.ToInt(quizResult.Value, 0);
+            int progressCount = MindWellServices.ToInt(progressResult.Value, 0);
             return articleCount + quizCount + progressCount > 0;
         }
 
@@ -129,7 +142,7 @@ namespace MindWell.Admin
             // Edit rows expose all module fields and reuse the same action column as display rows.
             int id = MindWellServices.ToInt(row["ModuleID"], 0);
             string description = Convert.ToString(row["Description"]);
-            sb.Append("<tr class='editing-row'><td><input name='moduleName_").Append(id).Append("' value='").Append(MindWellServices.Encode(row["ModuleName"])).Append("' data-validation-group='module-edit' /></td><td><textarea class='module-description' rows='").Append(GetTextareaRows(description)).Append("' name='description_").Append(id).Append("' data-validation-group='module-edit'>").Append(MindWellServices.Encode(description)).Append("</textarea></td><td><input type='number' name='orderIndex_").Append(id).Append("' value='").Append(row["OrderIndex"]).Append("' /></td><td><div class='button-row'><button name='moduleAction' value='update:").Append(id).Append("' class='btn btn-primary btn-sm'>Save</button><a class='btn btn-sm' href='ManageModules.aspx'>Cancel</a><button formnovalidate data-confirm='Are you sure you want to archive this module? It will be hidden from learners.' name='moduleAction' value='archive:").Append(id).Append("' class='btn btn-sm'>Archive</button><button formnovalidate data-confirm='Are you sure you want to delete this test record?' name='moduleAction' value='delete:").Append(id).Append("' class='btn btn-danger btn-sm'>Delete</button></div></td></tr>");
+            sb.Append("<tr class='editing-row'><td><label for='moduleName_").Append(id).Append("'>Name</label><input id='moduleName_").Append(id).Append("' name='moduleName_").Append(id).Append("' autocomplete='off' aria-describedby='moduleEditHelp_").Append(id).Append("' value='").Append(MindWellServices.Encode(row["ModuleName"])).Append("' data-validation-group='module-edit' /></td><td><label for='moduleDescription_").Append(id).Append("'>Description</label><textarea id='moduleDescription_").Append(id).Append("' class='module-description' name='description_").Append(id).Append("' autocomplete='off' aria-describedby='moduleEditHelp_").Append(id).Append("' rows='").Append(GetTextareaRows(description)).Append("' data-validation-group='module-edit'>").Append(MindWellServices.Encode(description)).Append("</textarea></td><td><label for='moduleOrderIndex_").Append(id).Append("'>Order</label><input id='moduleOrderIndex_").Append(id).Append("' type='number' name='orderIndex_").Append(id).Append("' autocomplete='off' aria-describedby='moduleEditHelp_").Append(id).Append("' value='").Append(row["OrderIndex"]).Append("' /><small id='moduleEditHelp_").Append(id).Append("' class='form-helper'>Update fields, then save this module.</small></td><td><div class='button-row'><button name='moduleAction' value='update:").Append(id).Append("' class='btn btn-primary btn-sm'>Save</button><a class='btn btn-sm' href='ManageModules.aspx'>Cancel</a><button formnovalidate data-confirm='Are you sure you want to archive this module? It will be hidden from learners.' name='moduleAction' value='archive:").Append(id).Append("' class='btn btn-sm'>Archive</button><button formnovalidate data-confirm='Are you sure you want to delete this test record?' name='moduleAction' value='delete:").Append(id).Append("' class='btn btn-danger btn-sm'>Delete</button></div></td></tr>");
         }
 
         private int GetTextareaRows(string value)

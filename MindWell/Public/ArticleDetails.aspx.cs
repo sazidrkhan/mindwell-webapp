@@ -15,7 +15,9 @@ namespace MindWell.Public
             if (!SecurityHelper.TryGetPositiveIntQuery("ArticleID", out id))
                 return RenderArticleBackActions(0) + "<section class='card'><h1>Article not found</h1><p>This article is not available.</p></section>";
 
-            DataTable article = MindWellServices.Query(@"SELECT a.Title, a.PreviewContent, a.Content, a.ImageURL, a.IsMembersOnly, lm.ModuleID, lm.ModuleName FROM Articles a INNER JOIN LearningModules lm ON a.ModuleID=lm.ModuleID WHERE a.ArticleID=@ArticleID AND a.IsPublished=1 AND " + MindWellServices.ActiveModuleWhere + " AND " + MindWellServices.CleanDemoTextWhere("a.Title") + " AND " + MindWellServices.CleanDemoTextWhere("ISNULL(a.PreviewContent, '')"), new SqlParameter("@ArticleID", id));
+            QueryResult articleResult = MindWellServices.TryQuery(@"SELECT a.Title, a.PreviewContent, a.Content, a.ImageURL, a.IsMembersOnly, lm.ModuleID, lm.ModuleName FROM Articles a INNER JOIN LearningModules lm ON a.ModuleID=lm.ModuleID WHERE a.ArticleID=@ArticleID AND a.IsPublished=1 AND " + MindWellServices.ActiveModuleWhere + " AND " + MindWellServices.CleanDemoTextWhere("a.Title") + " AND " + MindWellServices.CleanDemoTextWhere("ISNULL(a.PreviewContent, '')"), new SqlParameter("@ArticleID", id));
+            if (articleResult.HasError) return MindWellServices.RenderDataUnavailable("This article could not be loaded. Please try again.");
+            DataTable article = articleResult.Data;
             if (article.Rows.Count == 0)
                 return RenderArticleBackActions(0) + "<section class='card'><h1>Article not found</h1><p>This article is not available.</p></section>";
 
@@ -30,18 +32,19 @@ namespace MindWell.Public
             if (canReadFullArticle)
             {
                 string imageUrl = MindWellServices.SafeDisplayUrl(Convert.ToString(row["ImageURL"]), this);
-                image = string.IsNullOrWhiteSpace(imageUrl) ? string.Empty : "<p><img src='" + MindWellServices.Encode(imageUrl) + "' alt='' /></p>";
+                image = string.IsNullOrWhiteSpace(imageUrl) ? string.Empty : "<figure class='article-cover'><img class='article-cover-image' src='" + MindWellServices.Encode(imageUrl) + "' alt='' loading='lazy' decoding='async' /></figure>";
             }
             string loginUrl = "../Auth/Login.aspx?returnUrl=" + Server.UrlEncode(Request.RawUrl);
 
             var sb = new StringBuilder();
-            sb.Append(RenderArticleBackActions(moduleId))
-                .Append("<article class='card'><p class='content-kicker'>")
+            sb.Append("<div class='article-page'>").Append(RenderArticleBackActions(moduleId))
+                .Append("<article class='card article-reader'><header class='article-reader-head'><div><p class='content-kicker'>")
                 .Append(MindWellServices.Encode(row["ModuleName"])).Append("</p>");
             if (membersOnly)
                 sb.Append("<p><span class='access-badge'>").Append(canReadFullArticle ? "Member lesson" : "Full lesson after sign in").Append("</span></p>");
 
             sb.Append("<h1>").Append(MindWellServices.Encode(row["Title"])).Append("</h1>")
+                .Append("</div><div class='article-heading-art'>").Append(WellbeingUi.Scene(moduleId, "articles")).Append("</div></header>")
                 .Append(image).Append("<div class='article-body'>").Append(body).Append("</div>");
 
             sb.Append("</article>");
@@ -52,7 +55,7 @@ namespace MindWell.Public
 
             if (canReadFullArticle)
                 sb.Append(RenderFurtherReading(moduleId));
-            return sb.ToString();
+            return sb.Append("</div>").ToString();
         }
 
         private string RenderArticleBackActions(int moduleId)

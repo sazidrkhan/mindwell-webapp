@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <!-- Original geometric botanical artwork for MindWell. Decorative, with labels in HTML. -->
+  <symbol id="garden" viewBox="0 0 500 400">
+    <rect x="35" y="20" width="430" height="350" rx="180" fill="#daeae0"/>
+    <circle cx="330" cy="112" r="60" fill="#f4d77e"/>
+    <g stroke="#326858" stroke-width="3" fill="none" stroke-linecap="round">
+      <path d="M330 30v-12m75 93h14m-40-59 10-10m-128 7-9-9"/>
+      <path d="M72 307c34-50 100-85 180-74 84 12 136-34 192-13" stroke-dasharray="5 12"/>
+    </g>
+    <path d="M40 338c53-39 133-46 209-18 99-51 172-19 218 23v35H40Z" fill="#b2d0b9"/>
+    <path d="M346 329V193" stroke="#326858" stroke-width="7" stroke-linecap="round"/>
+    <path d="M347 257c-58-3-80-38-70-72 42 0 71 33 70 72" fill="#719f80"/>
+    <path d="M349 222c-5-53 22-89 62-86 11 38-13 82-62 86" fill="#376858"/>
+    <path d="M347 301c2-48 30-77 65-67 0 36-25 65-65 67" fill="#97b898"/>
+    <g transform="rotate(-9 158 285)">
+      <path d="M76 222c29-9 57-6 88 11 29-17 55-20 86-11v114c-34-8-60-3-86 12-27-15-58-21-88-12Z" fill="#fcfaf3" stroke="#326858" stroke-width="4" stroke-linejoin="round"/>
+      <path d="M164 233v114M94 251c18-2 34 2 51 9m-51 11c18-2 34 2 51 9m-51 11c18-2 34 2 51 9" fill="none" stroke="#87a393" stroke-width="3" stroke-linecap="round"/>
+      <path d="M213 250c-28 2-34 27-14 38 22-3 32-23 14-38Z" fill="#eeb49b"/>
+      <path d="M201 271v43" stroke="#326858" stroke-width="3"/>
+    </g>
+    <path d="M94 182c-20-20-14-53 10-63 22 18 22 47-10 63" fill="#edb49e"/>
+    <path d="M94 190v-42" stroke="#326858" stroke-width="3" stroke-linecap="round"/>
+    <g fill="#326858"><circle cx="270" cy="57" r="4"/><circle cx="423" cy="288" r="5"/><circle cx="61" cy="225" r="4"/></g>
+    <path d="m233 100 6 13 14 6-14 6-6 14-6-14-13-6 13-6Z" fill="#fcfaf3" stroke="#326858" stroke-width="2"/>
+  </symbol>
+  <symbol id="seed" viewBox="0 0 160 130">
+    <circle cx="83" cy="63" r="48" fill="#d8e9de"/>
+    <path d="M78 108V56" stroke="#2e6656" stroke-width="4" stroke-linecap="round"/>
+    <path d="M79 77c-33 0-48-20-41-40 29 1 44 19 41 40" fill="#79a58b"/>
+    <path d="M81 59c-3-30 17-46 40-38 1 24-13 39-40 38" fill="#326858"/>
+    <path d="M44 111h75" stroke="#326858" stroke-width="3" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="ripple" viewBox="0 0 160 130">
+    <circle cx="80" cy="64" r="47" fill="#f4dfd1"/>
+    <g stroke="#865644" stroke-width="3" fill="none"><ellipse cx="80" cy="88" rx="57" ry="18"/><ellipse cx="80" cy="85" rx="35" ry="10"/></g>
+    <path d="M80 17c-12 21-24 31-24 44a24 24 0 0 0 48 0c0-13-12-23-24-44Z" fill="#d99275"/>
+    <path d="M72 49c-5 8-5 15 1 20" stroke="#fff5ec" stroke-width="4" fill="none" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="sun" viewBox="0 0 160 130">
+    <circle cx="80" cy="65" r="34" fill="#f0d178"/>
+    <g fill="none" stroke="#7c612e" stroke-width="3" stroke-linecap="round"><path d="M80 14v-9m0 120v-10m50-50h10M20 65h10m14-36-8-8m88 88-8-8m8-80-8 8m-80 80 8-8"/><path d="M67 72q13 15 26 0"/></g>
+    <g fill="#7c612e"><circle cx="68" cy="56" r="3"/><circle cx="92" cy="56" r="3"/></g>
+  </symbol>
+  <symbol id="bloom" viewBox="0 0 160 130">
+    <g fill="#a9cbd2"><ellipse cx="80" cy="41" rx="19" ry="30"/><ellipse cx="80" cy="89" rx="19" ry="30"/><ellipse cx="56" cy="65" rx="30" ry="19"/><ellipse cx="104" cy="65" rx="30" ry="19"/></g>
+    <circle cx="80" cy="65" r="20" fill="#f6dc91" stroke="#38616a" stroke-width="2"/>
+    <path d="M72 67q8 8 16 0" fill="none" stroke="#38616a" stroke-width="3" stroke-linecap="round"/>
+  </symbol>
+</svg>

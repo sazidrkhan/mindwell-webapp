@@ -12,6 +12,50 @@ using System.Web.UI;
 
 namespace MindWell
 {
+    public sealed class ScalarResult
+    {
+        private ScalarResult(object value, bool hasError)
+        {
+            Value = value;
+            HasError = hasError;
+        }
+
+        public object Value { get; private set; }
+        public bool HasError { get; private set; }
+
+        public static ScalarResult Success(object value)
+        {
+            return new ScalarResult(value, false);
+        }
+
+        public static ScalarResult Failure()
+        {
+            return new ScalarResult(null, true);
+        }
+    }
+
+    public sealed class QueryResult
+    {
+        private QueryResult(DataTable data, bool hasError)
+        {
+            Data = data ?? new DataTable();
+            HasError = hasError;
+        }
+
+        public DataTable Data { get; private set; }
+        public bool HasError { get; private set; }
+
+        public static QueryResult Success(DataTable data)
+        {
+            return new QueryResult(data, false);
+        }
+
+        public static QueryResult Failure()
+        {
+            return new QueryResult(new DataTable(), true);
+        }
+    }
+
     public static class MindWellServices
     {
         // Maps stable module slugs used by pages/links to the database module IDs and display names.
@@ -76,30 +120,41 @@ namespace MindWell
             return ModuleNames[GetModuleId(slug) - 1];
         }
 
-        public static DataTable Query(string query, params SqlParameter[] parameters)
+        public static QueryResult TryQuery(string query, params SqlParameter[] parameters)
         {
-            // Centralizes SELECT execution so page code stays compact and database errors are logged safely.
+            // Keeps query failures distinguishable from valid empty result sets.
             try
             {
-                return DatabaseHelper.ExecuteQuery(query, parameters);
+                return QueryResult.Success(DatabaseHelper.ExecuteQuery(query, parameters));
             }
             catch (Exception ex)
             {
                 LogDiagnostic("MindWell query failed", ex);
-                return new DataTable();
+                return QueryResult.Failure();
             }
+        }
+
+        public static DataTable Query(string query, params SqlParameter[] parameters)
+        {
+            // Existing callers retain their safe fallback while affected pages use TryQuery for explicit status.
+            return TryQuery(query, parameters).Data;
         }
 
         public static object Scalar(string query, params SqlParameter[] parameters)
         {
+            return TryScalar(query, parameters).Value;
+        }
+
+        public static ScalarResult TryScalar(string query, params SqlParameter[] parameters)
+        {
             try
             {
-                return DatabaseHelper.ExecuteScalar(query, parameters);
+                return ScalarResult.Success(DatabaseHelper.ExecuteScalar(query, parameters));
             }
             catch (Exception ex)
             {
                 LogDiagnostic("MindWell scalar failed", ex);
-                return null;
+                return ScalarResult.Failure();
             }
         }
 
@@ -145,6 +200,11 @@ namespace MindWell
         public static string RenderDataUnavailable(string detail)
         {
             return "<section class='card empty-state'><h1>Learning content is temporarily unavailable.</h1><p>Please rebuild/restart the app and let the database initializer finish. If this continues, check MindWellDiagnostics.log.</p><p>" + Encode(detail) + "</p></section>";
+        }
+
+        public static string RenderEmptyState(string heading, string detail)
+        {
+            return "<section class='card empty-state'><h2>" + Encode(heading) + "</h2><p>" + Encode(detail) + "</p></section>";
         }
 
         public static int ToInt(object value, int fallback)
@@ -278,9 +338,13 @@ namespace MindWell
             return sb.ToString();
         }
 
-        public static string RenderModuleOptions(int selectedModuleId)
+        public static QueryResult TryGetModuleOptions()
         {
-            DataTable modules = Query("SELECT lm.ModuleID, lm.ModuleName FROM LearningModules lm WHERE " + ActiveModuleWhere + " ORDER BY lm.OrderIndex, lm.ModuleName");
+            return TryQuery("SELECT lm.ModuleID, lm.ModuleName FROM LearningModules lm WHERE " + ActiveModuleWhere + " ORDER BY lm.OrderIndex, lm.ModuleName");
+        }
+
+        public static string RenderModuleOptions(DataTable modules, int selectedModuleId)
+        {
             var sb = new StringBuilder();
             foreach (DataRow row in modules.Rows)
             {

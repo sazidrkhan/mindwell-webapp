@@ -21,9 +21,9 @@ namespace MindWell.User
                 string confirm = Request.Form["confirmPassword"] ?? string.Empty;
                 DataTable user = MindWellServices.Query("SELECT PasswordHash FROM Users WHERE UserID=@UserID", new SqlParameter("@UserID", userId));
                 if (user.Rows.Count == 0 || !PasswordHelper.VerifyPassword(current, user.Rows[0]["PasswordHash"].ToString()))
-                    message = "<div class='alert alert-danger'>Current password is incorrect.</div>";
+                    message = "<div id='changePasswordMessage' class='alert alert-danger' role='alert'>Current password is incorrect.</div>";
                 else if (next != confirm || !PasswordHelper.IsValidPassword(next))
-                    message = "<div class='alert alert-danger'>New password must match and meet the strength requirements.</div>";
+                    message = "<div id='changePasswordMessage' class='alert alert-danger' role='alert'>New password must match and meet the strength requirements.</div>";
                 else
                 {
                     MindWellServices.NonQuery("UPDATE Users SET PasswordHash=@PasswordHash, PasswordResetRequired=0 WHERE UserID=@UserID", new SqlParameter("@PasswordHash", PasswordHelper.HashPassword(next)), new SqlParameter("@UserID", userId));
@@ -35,22 +35,22 @@ namespace MindWell.User
                         return string.Empty;
                     }
 
-                    message = "<div class='alert alert-success'>Password updated.</div>";
+                    message = "<div id='changePasswordMessage' class='alert alert-success' role='status'>Password updated.</div>";
                 }
             }
-            string forceBanner = forcePasswordChange ? "<div class='alert alert-warning'>You must set a new password before continuing.</div>" : string.Empty;
+            string forceBanner = forcePasswordChange ? "<div id='forcePasswordMessage' class='alert alert-warning' role='status'>You must set a new password before continuing.</div>" : string.Empty;
             var sb = new StringBuilder("<p class='back-link'><a class='btn btn-outline btn-sm' href='Profile.aspx'>Back to Profile</a></p><section class='card change-password-card' data-password-strength-scope><h1>Change Password</h1>")
                 .Append(forceBanner)
                 .Append(message)
-                .Append("<div class='form-group'><label>Current password</label><div class='password-field'><input type='password' name='currentPassword' required />")
+                .Append("<div class='form-group'><label for='currentPassword'>Current password</label><div class='password-field'><input id='currentPassword' type='password' name='currentPassword' autocomplete='current-password' required />")
                 .Append(PasswordToggleMarkup())
-                .Append("</div></div><div class='form-group'><label>New password</label><div class='password-field'><input type='password' name='newPassword' required data-password-strength />")
+                .Append("</div></div><div class='form-group'><label for='newPassword'>New password</label><div class='password-field'><input id='newPassword' type='password' name='newPassword' autocomplete='new-password' aria-describedby='passwordRequirements' required data-password-strength />")
                 .Append(PasswordToggleMarkup())
                 .Append("</div>")
                 .Append(PasswordStrengthMarkup())
-                .Append("</div><div class='form-group'><label>Confirm new password</label><div class='password-field'><input type='password' name='confirmPassword' required data-password-confirm />")
+                .Append("</div><div class='form-group'><label for='confirmPassword'>Confirm new password</label><div class='password-field'><input id='confirmPassword' type='password' name='confirmPassword' autocomplete='new-password' aria-describedby='passwordMatch' required data-password-confirm />")
                 .Append(PasswordToggleMarkup())
-                .Append("</div><div class='match-indicator'></div></div><p class='page-actions'><button class='btn btn-primary'>Update Password</button></p></section>");
+                .Append("</div><div id='passwordMatch' class='match-indicator' role='status' aria-live='polite'></div></div><p class='page-actions'><button class='btn btn-primary'>Update Password</button></p></section>");
             return sb.ToString();
         }
 
@@ -66,7 +66,7 @@ namespace MindWell.User
 
         private string PasswordStrengthMarkup()
         {
-            return @"<div class='password-strength-wrapper'>
+            return @"<div id='passwordRequirements' class='password-strength-wrapper' role='status' aria-live='polite'>
 <div class='strength-bar'><div class='strength-fill empty'></div></div>
 <div class='strength-text'>Strength: <span></span></div>
 <div class='password-criteria'>

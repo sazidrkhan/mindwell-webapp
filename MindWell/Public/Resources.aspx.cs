@@ -10,20 +10,33 @@ namespace MindWell.Public
         protected string RenderResources()
         {
             // Loads published resources with their optional module names for browsing by visitors and users.
-            DataTable resources = MindWellServices.Query(@"SELECT r.Title, r.Description, r.ResourceType, r.ResourceUrl, r.ModuleID, lm.ModuleName FROM Resources r LEFT JOIN LearningModules lm ON r.ModuleID=lm.ModuleID WHERE r.IsPublished=1 AND " + MindWellServices.CleanDemoTextWhere("r.Title") + " AND " + MindWellServices.CleanDemoTextWhere("ISNULL(r.Description, '')") + " AND " + MindWellServices.CleanDemoTextWhere("ISNULL(r.ResourceUrl, '')") + " AND (r.ModuleID IS NULL OR " + MindWellServices.ActiveModuleWhere + ") ORDER BY r.CreatedDate DESC");
+            QueryResult resourcesResult = MindWellServices.TryQuery(@"SELECT r.Title, r.Description, r.ResourceType, r.ResourceUrl, r.ModuleID, lm.ModuleName FROM Resources r LEFT JOIN LearningModules lm ON r.ModuleID=lm.ModuleID WHERE r.IsPublished=1 AND " + MindWellServices.CleanDemoTextWhere("r.Title") + " AND " + MindWellServices.CleanDemoTextWhere("ISNULL(r.Description, '')") + " AND " + MindWellServices.CleanDemoTextWhere("ISNULL(r.ResourceUrl, '')") + " AND (r.ModuleID IS NULL OR " + MindWellServices.ActiveModuleWhere + ") ORDER BY r.CreatedDate DESC");
+            DataTable resources = resourcesResult.Data;
             bool authenticated = SecurityHelper.IsUserAuthenticated();
-            var sb = new StringBuilder("<section class='section-header'><h1>Resource Library</h1><p>Research articles, learning guides, and trusted mental health references to support your wellbeing journey.</p></section><div class='resource-grid'>");
+            var sb = new StringBuilder("<div class='library-page' data-library><section class='library-hero'><div><span class='small-label'>Tools for everyday wellbeing</span><h1>Resource Library</h1><p>Research articles, learning guides, and trusted mental health references to support your wellbeing journey.</p></div><div class='library-hero-art'>")
+                .Append(WellbeingUi.Scene(0, "resources")).Append("</div></section>");
+            if (resourcesResult.HasError)
+                return MindWellServices.RenderDataUnavailable("Learning content is temporarily unavailable: resources could not be loaded.");
+
             if (resources.Rows.Count == 0)
-                return MindWellServices.RenderDataUnavailable("Learning content is temporarily unavailable: resources returned no rows.");
+                return sb.Append(MindWellServices.RenderEmptyState("No resources are available yet.", "Published wellbeing references will appear here when they are ready.")).Append("</div>").ToString();
+
+            sb.Append(WellbeingUi.LibraryTools(resources, "resources", true)).Append("<div class='resource-grid library-grid'>");
 
             foreach (DataRow row in resources.Rows)
             {
                 string resourceUrl = Convert.ToString(row["ResourceUrl"]);
                 string safeUrl = MindWellServices.IsSafeDisplayUrl(resourceUrl) ? MindWellServices.SafeDisplayUrl(resourceUrl, this) : string.Empty;
-                sb.Append("<article class='card resource-card'><p><strong>").Append(MindWellServices.Encode(row["ResourceType"]))
-                    .Append("</strong> ").Append(MindWellServices.Encode(row["ModuleName"]))
-                    .Append("</p><h2>").Append(MindWellServices.Encode(row["Title"]))
-                    .Append("</h2><p>").Append(MindWellServices.Encode(row["Description"]))
+                int moduleId = MindWellServices.ToInt(row["ModuleID"], 0);
+                string title = Convert.ToString(row["Title"]);
+                const string readingPrefix = "Further reading: ";
+                if (title.StartsWith(readingPrefix, StringComparison.OrdinalIgnoreCase)) title = title.Substring(readingPrefix.Length);
+                sb.Append("<article class='card resource-card library-card' data-library-item data-topic='").Append(moduleId)
+                    .Append("' data-kind='").Append(MindWellServices.Encode(Convert.ToString(row["ResourceType"]).Trim())).Append("'><div class='library-card-art topic-surface-").Append(moduleId).Append("'>")
+                    .Append(WellbeingUi.Scene(moduleId)).Append("</div><div class='library-card-body'><p class='library-meta'><span class='library-type'>").Append(MindWellServices.Encode(row["ResourceType"]))
+                    .Append("</span><span>").Append(MindWellServices.Encode(row["ModuleName"]))
+                    .Append("</span></p><h2>").Append(MindWellServices.Encode(title))
+                    .Append("</h2><p class='library-excerpt'>").Append(MindWellServices.Encode(row["Description"]))
                     .Append("</p><div class='resource-actions'>");
                 if (!string.IsNullOrEmpty(safeUrl))
                     sb.Append("<a class='btn btn-outline' href='").Append(MindWellServices.Encode(safeUrl)).Append("' target='_blank' rel='noopener noreferrer'>Open Source</a>");
@@ -41,9 +54,9 @@ namespace MindWell.Public
                     }
                 }
 
-                sb.Append("</div></article>");
+                sb.Append("</div></div></article>");
             }
-            sb.Append("</div>");
+            sb.Append("</div><section class='card library-empty' data-library-empty hidden><h2>No matching resources</h2><p>Try another phrase or clear the filters to see the full library.</p></section></div>");
             if (!authenticated)
             {
                 sb.Append(@"

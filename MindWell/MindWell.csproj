@@ -35,6 +35,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <ProjectConfigTransformFileName Condition=" '$(Configuration)' == 'Release' ">..\Web.Release.config</ProjectConfigTransformFileName>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\</OutputPath>
@@ -91,12 +92,18 @@
     <Content Include="Admin\ManageQuizzes.aspx" />
     <Content Include="Admin\ManageFeedback.aspx" />
     <Content Include="Content\Site.css" />
+    <Content Include="Content\PlayfulCalm.css" />
+    <Content Include="Content\illustrations.svg" />
+    <Content Include="Content\fonts\lexend-latin.woff2" />
+    <Content Include="Content\fonts\OFL.txt" />
     <Content Include="Scripts\mindwell-ui.js" />
+    <Content Include="Scripts\mindwell-experience.js" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
+    <Compile Include="Core\WellbeingUi.cs" />
     <Compile Include="Default.aspx.cs">
       <DependentUpon>Default.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>

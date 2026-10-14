@@ -107,7 +107,7 @@ namespace MindWell
                 using (QRCodeData data = generator.CreateQrCode(provisioningUri, QRCodeGenerator.ECCLevel.Q))
                 {
                     SvgQRCode qrCode = new SvgQRCode(data);
-                    string svg = qrCode.GetGraphic(4);
+                    string svg = qrCode.GetGraphic(4, "#204D3D", "#F6F9F2", true, SvgQRCode.SizingMode.ViewBoxAttribute);
                     return "<div class='totp-qr' role='img' aria-label='Authenticator QR code for MindWell'>" + svg + "</div>";
                 }
             }

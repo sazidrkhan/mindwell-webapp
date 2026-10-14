@@ -2,6 +2,17 @@
 (function () {
   var themeStorageKey = 'mindwell-theme';
 
+  function clearLegacyDrafts() {
+    var legacyDraftPrefixes = ['activity', 'journal'];
+    try {
+      legacyDraftPrefixes.forEach(function (prefix) {
+        window.localStorage.removeItem(prefix + '-draft');
+      });
+    } catch (error) {
+      // Legacy draft cleanup is best effort when browser storage is blocked.
+    }
+  }
+
   function getStoredTheme() {
     try {
       var stored = window.localStorage.getItem(themeStorageKey);
@@ -43,6 +54,7 @@
     }
 
     updateThemeButtons(nextTheme);
+    document.dispatchEvent(new CustomEvent('mindwell:themechange', { detail: { theme: nextTheme } }));
   }
 
   function setupThemeToggle() {
@@ -55,6 +67,44 @@
         applyTheme(current === 'dark' ? 'light' : 'dark', true);
       });
     });
+  }
+
+  function setupMobileNavigation() {
+    var toggle = document.querySelector('[data-nav-toggle]');
+    var nav = document.getElementById('primaryNav');
+    if (!toggle || !nav) return;
+
+    function closeNavigation(returnFocus) {
+      nav.classList.remove('is-open');
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.setAttribute('aria-label', 'Open navigation');
+      if (returnFocus) toggle.focus();
+    }
+
+    function openNavigation() {
+      nav.classList.add('is-open');
+      toggle.setAttribute('aria-expanded', 'true');
+      toggle.setAttribute('aria-label', 'Close navigation');
+    }
+
+    toggle.addEventListener('click', function () {
+      if (toggle.getAttribute('aria-expanded') === 'true') closeNavigation(false);
+      else openNavigation();
+    });
+
+    nav.querySelectorAll('a').forEach(function (link) {
+      link.addEventListener('click', function () {
+        closeNavigation(false);
+      });
+    });
+
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && toggle.getAttribute('aria-expanded') === 'true') {
+        closeNavigation(true);
+      }
+    });
+
+    document.documentElement.classList.add('mobile-nav-ready');
   }
 
   function syncPasswordField(wrapper) {
@@ -114,7 +164,12 @@
         if (!target) return;
 
         event.preventDefault();
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.getAttribute('data-motion') === 'off';
+        target.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
+        if (target.hasAttribute('tabindex')) target.focus({ preventScroll: true });
+        if (link.classList.contains('skip-link') && target.id === 'main-content') {
+          target.focus({ preventScroll: true });
+        }
       });
     });
   }
@@ -131,53 +186,28 @@
       });
     }, { threshold: 0.12 });
 
-    document.querySelectorAll('.card, .guided-activity-card, .quiz-review-card').forEach(function (card) {
+    document.querySelectorAll('.card, .guided-activity-card, .quiz-review-card, [data-reveal]').forEach(function (card) {
       card.classList.add('reveal-pending');
       observer.observe(card);
     });
   }
 
   function setupQuizProgress() {
-    var questions = document.querySelectorAll('.quiz-card');
+    var questions = document.querySelectorAll('.question-panel');
     var progress = document.querySelector('.quiz-progress');
     if (!questions.length || !progress) return;
 
     function updateProgress() {
-      var answered = document.querySelectorAll('.quiz-card input[type="radio"]:checked').length;
+      var answered = document.querySelectorAll('.question-panel input[type="radio"]:checked').length;
       progress.textContent = answered + ' of ' + questions.length + ' questions answered';
+      var meter = document.querySelector('[data-quiz-meter]');
+      if (meter) { meter.max = questions.length; meter.value = answered; }
     }
 
     document.addEventListener('change', function (event) {
-      if (event.target.matches('.quiz-card input[type="radio"]')) updateProgress();
+      if (event.target.matches('.question-panel input[type="radio"]')) updateProgress();
     });
     updateProgress();
-  }
-
-  function setupDraftAutosave() {
-    var draftFields = [
-      { selector: 'textarea[name="response"]', key: 'activity-draft' },
-      { selector: 'textarea[name="reflection"]', key: 'journal-draft' }
-    ];
-
-    draftFields.forEach(function (entry) {
-      var field = document.querySelector(entry.selector);
-      if (!field) return;
-
-      try {
-        var saved = window.localStorage.getItem(entry.key);
-        if (saved && !field.value) field.value = saved;
-      } catch (error) {
-        return;
-      }
-
-      field.addEventListener('input', function () {
-        try {
-          window.localStorage.setItem(entry.key, field.value);
-        } catch (error) {
-          // Draft saving is progressive enhancement only.
-        }
-      });
-    });
   }
 
   function setupConfirmActions() {
@@ -254,15 +284,24 @@
     var symbols = '!@#$%';
     var all = upper + lower + digits + symbols;
 
+    function randomIndex(max) {
+      var values = new Uint32Array(1);
+      var limit = Math.floor(0x100000000 / max) * max;
+      do {
+        window.crypto.getRandomValues(values);
+      } while (values[0] >= limit);
+      return values[0] % max;
+    }
+
     function pick(source) {
-      return source.charAt(Math.floor(Math.random() * source.length));
+      return source.charAt(randomIndex(source.length));
     }
 
     var chars = [pick(upper), pick(lower), pick(digits), pick(symbols)];
     while (chars.length < 14) chars.push(pick(all));
 
     for (var i = chars.length - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
+      var j = randomIndex(i + 1);
       var temp = chars[i];
       chars[i] = chars[j];
       chars[j] = temp;
@@ -277,11 +316,28 @@
       if (!button) return;
 
       event.preventDefault();
-      var row = button.closest('.password-reset-actions') || button.closest('.password-reset-panel') || document;
+      var panel = button.closest('.password-reset-panel') || document;
+      var row = button.closest('.password-reset-actions') || panel;
       var input = row.querySelector('input[name="tempPassword"]');
       if (!input) return;
 
-      input.value = generateTemporaryPassword();
+      var status = panel.querySelector('[data-password-generator-status]');
+      if (status) {
+        status.textContent = '';
+        status.classList.remove('form-error');
+      }
+
+      try {
+        input.value = generateTemporaryPassword();
+      } catch (error) {
+        if (status) {
+          status.textContent = 'Secure password generation is unavailable. Enter a password manually.';
+          status.classList.add('form-error');
+        }
+        input.focus();
+        return;
+      }
+
       input.dispatchEvent(new Event('input', { bubbles: true }));
       input.focus();
     });
@@ -389,11 +445,28 @@
     if (!trigger || !modal || !backdrop) return;
 
     var storageKey = 'mindwell-register-gate';
+    var focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
     var accepted = false;
     try {
       accepted = window.localStorage.getItem(storageKey) === 'accepted';
     } catch (error) {
       accepted = false;
+    }
+
+    function getFocusableElements() {
+      return Array.prototype.slice.call(modal.querySelectorAll(focusableSelector)).filter(function (element) {
+        return !element.hasAttribute('hidden') && (element.offsetWidth > 0 || element.offsetHeight > 0 || element === document.activeElement);
+      });
+    }
+
+    function focusIntoGate() {
+      var focusable = getFocusableElements();
+      if (focusable.length > 0) {
+        focusable[0].focus();
+        return;
+      }
+
+      modal.focus();
     }
 
     function closeGate() {
@@ -405,16 +478,49 @@
       } catch (error) {
         // Registration remains usable even if browser storage is blocked.
       }
+      trigger.focus();
     }
 
-    if (!accepted) {
+    function openGate() {
       modal.removeAttribute('hidden');
       backdrop.removeAttribute('hidden');
       document.body.classList.add('register-gate-open');
+      focusIntoGate();
     }
+
+    if (!accepted) openGate();
 
     document.querySelectorAll('[data-register-gate-close]').forEach(function (button) {
       button.addEventListener('click', closeGate);
+    });
+
+    document.addEventListener('keydown', function (event) {
+      if (modal.hasAttribute('hidden')) return;
+
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeGate();
+        return;
+      }
+
+      if (event.key !== 'Tab') return;
+
+      var focusable = getFocusableElements();
+      if (focusable.length === 0) {
+        event.preventDefault();
+        modal.focus();
+        return;
+      }
+
+      var first = focusable[0];
+      var last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     });
   }
 
@@ -510,14 +616,16 @@
     togglePassword(button);
   });
 
+  clearLegacyDrafts();
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () {
       setupThemeToggle();
+      setupMobileNavigation();
       setupPasswordFields();
       setupSmoothScroll();
       setupCardReveal();
       setupQuizProgress();
-      setupDraftAutosave();
       setupConfirmActions();
       setupLessonInteractions();
       setupVloToggles();
@@ -530,11 +638,11 @@
     });
   } else {
     setupThemeToggle();
+    setupMobileNavigation();
     setupPasswordFields();
     setupSmoothScroll();
     setupCardReveal();
     setupQuizProgress();
-    setupDraftAutosave();
     setupConfirmActions();
     setupLessonInteractions();
     setupVloToggles();

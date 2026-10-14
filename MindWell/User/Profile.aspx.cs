@@ -85,10 +85,10 @@ namespace MindWell.User
 
             var sb = new StringBuilder();
             sb.Append("<section class='card'><h1>Profile & Settings</h1>").Append(message).Append(@"
-<div class='form-group'><label>First name</label><input name='firstName' value='").Append(MindWellServices.Encode(row == null ? "" : row["FirstName"])).Append(@"' /></div>
-<div class='form-group'><label>Last name</label><input name='lastName' value='").Append(MindWellServices.Encode(row == null ? "" : row["LastName"])).Append(@"' /></div>
-<div class='form-group'><label>Email</label><input disabled value='").Append(MindWellServices.Encode(row == null ? "" : row["Email"])).Append(@"' /></div>
-<div class='form-group'><label>Bio</label><textarea name='bio'>").Append(MindWellServices.Encode(row == null ? "" : row["ProfileBioText"])).Append(@"</textarea></div>
+<div class='form-group'><label for='firstName'>First name</label><input id='firstName' name='firstName' autocomplete='given-name' value='").Append(MindWellServices.Encode(row == null ? "" : row["FirstName"])).Append(@"' /></div>
+<div class='form-group'><label for='lastName'>Last name</label><input id='lastName' name='lastName' autocomplete='family-name' value='").Append(MindWellServices.Encode(row == null ? "" : row["LastName"])).Append(@"' /></div>
+<div class='form-group'><label for='profileEmail'>Email</label><input id='profileEmail' autocomplete='email' disabled value='").Append(MindWellServices.Encode(row == null ? "" : row["Email"])).Append(@"' /></div>
+<div class='form-group'><label for='bio'>Bio</label><textarea id='bio' name='bio' autocomplete='off'>").Append(MindWellServices.Encode(row == null ? "" : row["ProfileBioText"])).Append(@"</textarea></div>
 <button class='btn btn-primary' name='profileAction' value='save' type='submit'>Save Profile</button> <a class='btn btn-outline' href='ChangePassword.aspx'>Change Password</a></section>");
             sb.Append(RenderTotpSettings(row));
             return sb.ToString();
@@ -104,7 +104,7 @@ namespace MindWell.User
             sb.Append("<section class='card totp-card'><div class='security-status ")
                 .Append(isEnabled ? "security-status-enabled'>MFA enabled" : "security-status-pending'>Optional security")
                 .Append("</div><h2>Authenticator app setup</h2>")
-                .Append("<p>Add a time-based one-time password from an authenticator app for stronger account protection.</p>");
+                .Append("<p id='totpCodeHelp'>Add a time-based one-time password from an authenticator app for stronger account protection.</p>");
 
             if (isEnabled)
             {
@@ -116,7 +116,7 @@ namespace MindWell.User
                 string uri = TotpHelper.GenerateProvisioningUri(username, pendingSecret);
                 sb.Append(TotpHelper.GenerateQrCodeSvg(uri))
                     .Append("<p class='totp-secret'>Manual key: <code>").Append(MindWellServices.Encode(pendingSecret)).Append("</code></p>")
-                    .Append("<div class='form-group'><label>6-digit code</label><input class='totp-code-input' name='totpCode' maxlength='6' inputmode='numeric' autocomplete='one-time-code' /></div>")
+                    .Append("<div class='form-group'><label for='totpCode'>6-digit code</label><input id='totpCode' class='totp-code-input' name='totpCode' maxlength='6' inputmode='numeric' autocomplete='one-time-code' aria-describedby='totpCodeHelp' /></div>")
                     .Append("<div class='button-row totp-action-row'><button class='btn btn-primary totp-action-button' type='submit' name='profileAction' value='confirmTotpEnrollment'>Verify and enable MFA</button>")
                     .Append("<button class='btn btn-outline totp-action-button' type='submit' name='profileAction' value='startTotpEnrollment'>Generate a new QR code</button>")
                     .Append("<button class='btn btn-outline totp-action-button' type='submit' name='profileAction' value='cancelTotpEnrollment'>Cancel setup</button></div>");
